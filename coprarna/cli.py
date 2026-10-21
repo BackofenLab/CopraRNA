@@ -16,7 +16,7 @@ LOG = logging.getLogger("coprarna")
 
 def _parser():
     parser = argparse.ArgumentParser(
-        description="CopraRNA Python 3 preprocessing helpers (rewrite in progress)."
+        description="CopraRNA comparative RNA target prediction with Python 3."
     )
     parser.add_argument("--version", action="version", version=__version__)
     commands = parser.add_subparsers(dest="command", required=True)
@@ -25,14 +25,34 @@ def _parser():
     )
     helper.add_argument("--workdir", type=Path, default=Path.cwd())
     helper.add_argument("name", help="Helper name or original script basename")
-    helper.add_argument("args", nargs="*")
+    helper.add_argument("args", nargs=argparse.REMAINDER)
     batch = commands.add_parser(
-        "batch", help="Run independent helper jobs from a JSON manifest"
+        "batch", help="Run independent prediction or helper jobs from a JSON manifest"
     )
     batch.add_argument("manifest", type=Path)
     batch.add_argument(
         "--jobs", type=int, default=1, help="Maximum concurrent jobs (default: 1)"
     )
+    run = commands.add_parser(
+        "run", help="Run a complete comparative target prediction"
+    )
+    run.add_argument("--workdir", type=Path, default=Path.cwd())
+    run.add_argument("--srnaseq", "-srnaseq", type=Path, default=Path("input_sRNA.fa"))
+    from .pipeline import Config
+    from dataclasses import fields
+
+    for field in fields(Config):
+        if field.name == "seed":
+            run.add_argument("--seed", type=int, default=None)
+        elif isinstance(field.default, bool):
+            run.add_argument("--" + field.name, "-" + field.name, action="store_true")
+        else:
+            run.add_argument(
+                "--" + field.name,
+                "-" + field.name,
+                type=type(field.default),
+                default=field.default,
+            )
     commands.add_parser("status", help="Print the complete migration inventory as JSON")
     commands.add_parser("helpers", help="List helper names and positional arguments")
     return parser
@@ -50,6 +70,7 @@ def _load_jobs(manifest: Path) -> list[dict]:
             "args",
             "workdir",
             "stdout",
+            "options",
         }:
             raise ValueError(
                 "Each job must contain only id, helper, args, workdir and optional stdout"
@@ -69,6 +90,16 @@ def _load_jobs(manifest: Path) -> list[dict]:
             or not all(isinstance(a, str) for a in item["args"])
         ):
             raise ValueError(f"Invalid helper or argument list for job {identifier}")
+        settings = item.get("options", {})
+        if not isinstance(settings, dict) or (settings and item["helper"] != "predict"):
+            raise ValueError("options is a configuration object for predict jobs only")
+        if item["helper"] == "predict":
+            from .pipeline import Config
+
+            try:
+                Config(**settings)
+            except TypeError as exc:
+                raise ValueError(str(exc)) from exc
         name = resolve(item["helper"])
         spec = HELPERS[name]
         if len(item["args"]) < len(spec.arguments) or (
@@ -118,6 +149,7 @@ def _load_jobs(manifest: Path) -> list[dict]:
                 args=item["args"],
                 workdir=directory,
                 output=output,
+                options=settings,
             )
         )
     return jobs
@@ -129,7 +161,14 @@ def _run_job(job: dict) -> dict:
     try:
         if job["output"] is not None:
             stream = job["output"].open("x", encoding="utf-8", newline="")
-        result = run_helper(job["helper"], job["args"], job["workdir"])
+        if job["helper"] == "predict":
+            from .pipeline import Config, run_prediction
+
+            result = run_prediction(
+                Path(job["args"][0]), job["workdir"], Config(**job["options"])
+            )
+        else:
+            result = run_helper(job["helper"], job["args"], job["workdir"])
         if stream is None:
             record["stdout"] = result
         else:
@@ -154,7 +193,15 @@ def main(argv=None) -> int:
         level=logging.INFO, format="%(levelname)s: %(message)s", stream=sys.stderr
     )
     try:
-        if args.command == "helpers":
+        if args.command == "run":
+            from .pipeline import Config, run_prediction
+            from dataclasses import fields
+
+            config = Config(
+                **{field.name: getattr(args, field.name) for field in fields(Config)}
+            )
+            run_prediction(args.srnaseq, args.workdir, config)
+        elif args.command == "helpers":
             for name, spec in HELPERS.items():
                 print(
                     name
@@ -174,7 +221,14 @@ def main(argv=None) -> int:
             json.dump(records, sys.stdout, indent=2)
             print()
             return int(any(record["status"] == "error" for record in records))
-    except (OSError, ValueError, IndexError, KeyError, ArithmeticError) as exc:
+    except (
+        OSError,
+        ValueError,
+        IndexError,
+        KeyError,
+        ArithmeticError,
+        RuntimeError,
+    ) as exc:
         LOG.error("%s", exc)
         return 2
     except KeyboardInterrupt:

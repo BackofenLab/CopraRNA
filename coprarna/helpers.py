@@ -136,6 +136,102 @@ HELPERS.update(
 )
 
 
+HELPERS.update(
+    {
+        "predict": Helper(
+            "CopraRNA2.pl", "coprarna.pipeline.run_prediction", ("srna",), False
+        ),
+        "homology": Helper(
+            "homology_intaRNA.pl",
+            "coprarna.homology.run_homology",
+            ("srna", "up", "down", "region", "accession"),
+            True,
+        ),
+        "prepare-intarna": Helper(
+            "prepare_intarna_out.pl",
+            "coprarna.intarna.prepare_predictions",
+            ("srna", "up", "down", "region", "genbank-group"),
+            True,
+        ),
+        "combine-clusters": Helper(
+            "combine_clusters.pl",
+            "coprarna.combination.combine_clusters",
+            ("organism-count",),
+            False,
+        ),
+        "download-genbank": Helper(
+            "get_refseq_from_refid.pl",
+            "coprarna.ncbi.download_genbank",
+            ("-acc", "accession", "-g", "output"),
+            False,
+        ),
+        "align-targets": Helper(
+            "parallelize_target_alignments.pl",
+            "coprarna.alignments.align_targets",
+            ("prediction-table",),
+            False,
+        ),
+        "conservation": Helper(
+            "copraRNA2_position_script_for_evo_precalculated_alignments_w_ooi.R",
+            "coprarna.conservation.compute_conservation",
+            ("organism",),
+            False,
+        ),
+        "plot-regions": Helper(
+            "script_R_plots_8.R",
+            "coprarna.plots.plot_interaction_regions",
+            ("prediction-table", "count"),
+            False,
+        ),
+        "plot-evolution": Helper(
+            "evo_heatmap.R", "coprarna.plots.plot_evolutionary_heatmap", (), True
+        ),
+        "functional-enrichment": Helper(
+            "extract_functional_enriched.R",
+            "coprarna.enrichment.extract_enriched_terms",
+            ("predictions", "report", "output"),
+            False,
+        ),
+        "david-copra": Helper(
+            "DAVIDWebService_CopraRNA.py",
+            "coprarna.david.coprarna_report",
+            ("predictions", "count"),
+            False,
+        ),
+        "david-intarna": Helper(
+            "DAVIDWebService_IntaRNA_chartReport.py",
+            "coprarna.david.intarna_report",
+            ("predictions", "count"),
+            False,
+        ),
+        "webserver-output": Helper(
+            "prepare_output_for_websrv_new.pl",
+            "coprarna.webserver.prepare_webserver_output",
+            ("predictions", "interactions"),
+            False,
+        ),
+        "rasterize": Helper(
+            "rasterize.js",
+            "coprarna.webserver.rasterize_heatmap",
+            ("address", "output"),
+            True,
+        ),
+        "organism-mapping": Helper(
+            "build_kegg2refseq.pl",
+            "coprarna.maintenance.build_organism_mapping",
+            (),
+            True,
+        ),
+        "availability-header": Helper(
+            "add_date_omit_incompatible.sh",
+            "coprarna.maintenance.write_availability_header",
+            ("header-file",),
+            False,
+        ),
+    }
+)
+
+
 def resolve(name: str) -> str:
     if name in HELPERS:
         return name
@@ -212,4 +308,65 @@ def run_helper(name: str, args: list[str], directory: Path, *, seed=None) -> str
         return combination.join_copra1(path(0), directory, seed)
     if name == "join-copra2":
         return combination.join_copra2(args[0], directory, *args[1:])
+    from . import (
+        pipeline,
+        homology,
+        intarna,
+        ncbi,
+        alignments,
+        conservation,
+        plots,
+        enrichment,
+        david,
+        webserver,
+        maintenance,
+    )
+
+    if name == "predict":
+        return pipeline.run_prediction(path(0), directory, pipeline.Config(seed=seed))
+    if name == "homology":
+        return homology.run_homology(
+            path(0), int(args[1]), int(args[2]), args[3], args[4:], directory, seed
+        )
+    if name == "prepare-intarna":
+        return intarna.prepare_predictions(
+            path(0), int(args[1]), int(args[2]), args[3], args[4:], directory
+        )
+    if name == "combine-clusters":
+        return combination.combine_clusters(int(args[0]), directory, seed)
+    if name == "download-genbank":
+        if args[0] != "-acc" or args[2] not in ("-g", "--genome"):
+            raise ValueError("expected -acc accession -g output")
+        return ncbi.download_genbank(args[1], path(3))
+    if name == "align-targets":
+        return alignments.align_targets(path(0), directory)
+    if name == "conservation":
+        return conservation.compute_conservation(args[0], directory)
+    if name == "plot-regions":
+        return plots.plot_interaction_regions(path(0), int(args[1]), directory)
+    if name == "plot-evolution":
+        return plots.plot_evolutionary_heatmap(
+            directory, **dict(arg.split("=", 1) for arg in args)
+        )
+    if name == "functional-enrichment":
+        return enrichment.extract_enriched_terms(path(0), path(1), path(2))
+    if name == "david-copra":
+        return david.coprarna_report(path(0), int(args[1]))
+    if name == "david-intarna":
+        return david.intarna_report(path(0), int(args[1]))
+    if name == "webserver-output":
+        return webserver.prepare_webserver_output(path(0), path(1), directory)
+    if name == "rasterize":
+        return webserver.rasterize_heatmap(
+            args[0],
+            path(1),
+            args[2] if len(args) > 2 else None,
+            float(args[3]) if len(args) > 3 else 1.0,
+        )
+    if name == "organism-mapping":
+        return maintenance.build_organism_mapping(
+            directory, path(0) if args else None, seed
+        )
+    if name == "availability-header":
+        return maintenance.write_availability_header(directory, path(0).read_text())
     raise AssertionError(f"Undispatched registered helper: {name}")

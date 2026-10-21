@@ -75,7 +75,7 @@ def test_batch_preflight_prevents_partial_execution(tmp_path, capsys, problem):
     elif problem == "bad-args":
         items[1]["args"] = []
     else:
-        items[1]["helper"] = "join_pvals_coprarna2.R"
+        items[1]["helper"] = "nonexistent-helper"
     manifest.write_text(json.dumps(items))
     assert main(["batch", str(manifest), "--jobs", "2"]) == 2
     assert not (tmp_path / "job1/formatted.fa").exists()
@@ -88,7 +88,7 @@ def test_module_cli_help_and_failure_exit_codes(tmp_path):
         [sys.executable, "-m", "coprarna", "--help"], capture_output=True, text=True
     )
     assert result.returncode == 0
-    assert "rewrite in progress" in result.stdout
+    assert "comparative RNA target prediction" in result.stdout
     assert "Traceback" not in result.stderr
     result = subprocess.run(
         [
@@ -107,3 +107,21 @@ def test_module_cli_help_and_failure_exit_codes(tmp_path):
     assert result.returncode == 2
     assert result.stdout == ""
     assert "Traceback" not in result.stderr
+
+
+def test_prediction_batch_options_are_passed_per_job(tmp_path, capsys, monkeypatch):
+    from coprarna import pipeline
+
+    manifest, items = _manifest(tmp_path)
+    for i, item in enumerate(items):
+        item.update(helper="predict", options={"cores": i + 1, "cons": 2})
+    manifest.write_text(json.dumps(items))
+    seen = []
+
+    def fake_prediction(srna, directory, config):
+        seen.append((directory.name, config.cores, config.cons))
+        return ""
+
+    monkeypatch.setattr(pipeline, "run_prediction", fake_prediction)
+    assert main(["batch", str(manifest), "--jobs", "2"]) == 0
+    assert sorted(seen) == [("job1", 1, 2), ("job2", 2, 2)]

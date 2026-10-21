@@ -99,6 +99,13 @@ def main():
     clustered=HEADER.replace('id1;','d1;',1)+';p-value;clusternumber\n'+row('lt0','NC_000002',pval='0.2').rstrip()+';1\n'+row('lt1','NC_000001',pval='0.1').rstrip()+';1\n'+row('lt2','NC_000002',pval='0.8').rstrip()+';2\n'
     case('prepare-copra2','prep_cop2.R',['opt_tags.clustered'],{'opt_tags.clustered':clustered},['CopraRNA2_prep.csv'])
     case('filter-clusters','remove_clusters_under_percantage.R',files={'CopraRNA_option_file.txt':option,'16s_sequences.fa':'>one\nACGT\n>two\nACGT\n>three\nACGT\n','opt_tags.clustered':clustered},outputs=['opt_tags.clustered_rcsize'])
+    folder=case('annotate-raw', 'annotate_raw_output.pl', ['result.raw','opt_tags.clustered','NC_000001.gb','NC_000002.gb'], files={'result.raw':'0.001;other0;lt0;\n0.2;lt1;\n0.3;other1;\n', 'opt_tags.clustered':clustered+row('other0','NC_000002',pval='0.05').rstrip()+';1\n'+row('other1','NC_000002',pval='0.15').rstrip()+';2\n'}, modules=['Bio::SeqIO'])
+    genome(folder/'NC_000001.gb')
+    genome(folder/'NC_000002.gb')
+    text=(folder/'NC_000002.gb').read_text()
+    for i in range(6):
+        text=text.replace(f'LT{i}',f'other{i}')
+    (folder/'NC_000002.gb').write_text(text)
     folder=case('fit-energy-pvalues','add_pval_to_csv_evdfit.R',files={'CopraRNA_option_file.txt':option,opt:HEADER+'\n'+''.join(row('lt'+str(i),energy=str(-5-i*.31-(i%7))) for i in range(80)),sub:HEADER+'\n'+''.join(row('lt'+str(i),energy=str(-3-i*.25-(i%5))) for i in range(80))},outputs=[opt,sub])
 
 

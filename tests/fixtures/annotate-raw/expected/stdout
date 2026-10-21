@@ -1,0 +1,4 @@
+p-value,NC_000001,NC_000002,Annotation
+0.001,lt0(g0;name|-12|0.2|3|8|2|7|GeneID:100),other0(g0;name|-12|0.05|3|8|2|7|GeneID:100),product 0  alpha; beta
+0.2,lt1(g1;name|-12|0.1|3|8|2|7|GeneID:101),,note 1  fallback
+0.3,,other1(g1;name|-12|0.15|3|8|2|7|GeneID:101),

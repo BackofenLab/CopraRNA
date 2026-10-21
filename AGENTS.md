@@ -72,3 +72,22 @@ Phase 1 validation: 28 captured legacy fixture cases plus the original-source
 checksum test pass (29 tests). All golden files were captured before porting.
 The fixtures include a full GEV fit oracle; this does not establish Python GEV
 parity. Oracle commands used the explicit runtime paths described above.
+
+### Phase 2: sequence, table and phylogeny helpers
+
+Implemented Python ports in `fasta.py`, `genome.py`, `tables.py`, `annotation.py`,
+`phylogeny.py` and `statistics.py`. The 28 migrated synthetic fixture cases match
+legacy outputs (byte comparisons, except explicitly unordered Perl hash bodies).
+
+Real-genome validation exposed a translation error in compound locations spanning
+the circular origin. BioPerl keeps the location-list order; Biopython reverses a
+complemented location list. The port now reverses only complemented lists and
+preserves origin-spanning joins. This corrects the translation, not legacy logic.
+The affected NC_000911 genome now matches all three regions; the other 16 genomes
+already matched all three regions. Total: all 51 real-genome/region comparisons
+have passed with the final location handling (16 genomes before the correction;
+one affected genome afterward).
+
+Not yet ported: GEV fitting, correlated p-value joining, consensus/conservation,
+plotting, full pipeline orchestration, webserver rendering and maintenance tools.
+No complete end-to-end rewrite or whole-workflow equivalence is claimed.

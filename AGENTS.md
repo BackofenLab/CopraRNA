@@ -205,3 +205,10 @@ statistics/reporting dependencies. Full pipeline tests are opt-in because they
 require these executables; the complete offline fixture is committed for CI.
 Remaining work in this task is verification/publishing and the separate bug-fix
 branch required by phase 6, not additional unported components.
+
+Final rewrite validation: **120 tests passed** in 140.78 seconds in the fresh
+Python 3.12 pinned environment, with both legacy runtimes, all 17 reference
+genomes, both complete native workflows and Chromium enabled. Source/wheel builds
+succeeded; the installed console entry point and inventory work from outside the
+repository. A further audited legacy edge defect is retained: the R peak finder
+reads beyond the last position when a peak reaches the right boundary.

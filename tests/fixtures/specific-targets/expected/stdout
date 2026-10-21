@@ -1,0 +1,2 @@
+term;predicted_targets EntrezGeneID(locus_tag|gene_name|target_start|target_end)
+termA;101(LT1|gene1|3|8)

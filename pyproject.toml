@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=75", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "coprarna"
+version = "3.0.0.dev0"
+description = "Behavior-preserving Python 3 migration of CopraRNA preprocessing helpers"
+readme = "README.2.md"
+requires-python = ">=3.11"
+license = {file = "LICENSE"}
+authors = [{name = "CopraRNA contributors"}]
+dependencies = ["biopython>=1.84,<2"]
+
+[project.optional-dependencies]
+test = ["pytest>=8.3,<9"]
+build = ["build>=1.2,<2"]
+
+[project.scripts]
+coprarna = "coprarna.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["coprarna", "coprarna.*"]
+namespaces = false
+exclude = ["tests*"]
+
+[tool.setuptools.package-data]
+coprarna = ["data/*.gz", "data/*.txt", "migration.json"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = ["integration: optional legacy-oracle checks on all bundled real genomes"]

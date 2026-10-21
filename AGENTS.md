@@ -172,8 +172,8 @@ consumes the same random draws; a fix belongs in the separate bug-fix branch.
 
 The full native orchestration and reporting modules are under integration test.
 A synthetic offline three-genome fixture uses the supported imported-cluster
-path. The installed DomClust 1.2.8 ignores trailing options after its positional
-files, so the original invocation produces list output instead of the requested
+path. The installed DomClust 1.2.8 no longer implements the advertised `-o5` table
+mode, so the original invocation produces list output instead of the requested
 table. This invocation defect is reserved for the bug-fix branch.
 
 ### Complete workflow and reporting validation
@@ -212,3 +212,9 @@ genomes, both complete native workflows and Chromium enabled. Source/wheel build
 succeeded; the installed console entry point and inventory work from outside the
 repository. The R peak finder safely ends at the right boundary because
 R evaluates `NA & FALSE` as FALSE; the Python bounds check preserves that behavior.
+
+CI portability audit: exact nonlinear fits depend on BLAS reduction order. Pin
+NumPy/SciPy and the validated Haswell/Zen AVX2 kernel instead of weakening the
+byte-comparison tests. Linux AVX2 imports select this kernel before NumPy loads;
+CI sets it explicitly because tests can import NumPy before CopraRNA. Other
+BLAS/CPU configurations remain outside the certified parity environment.

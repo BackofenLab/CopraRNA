@@ -4,6 +4,9 @@ on:
   pull_request:
   workflow_dispatch:
 
+env:
+  OPENBLAS_CORETYPE: Haswell
+
 jobs:
   python:
     runs-on: ubuntu-latest

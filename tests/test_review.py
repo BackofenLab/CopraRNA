@@ -348,3 +348,53 @@ def test_functional_enrichment_has_vector_pdf_and_svg(tmp_path):
     assert prefix.with_suffix(".pdf").read_bytes().startswith(b"%PDF")
     drawing = ET.parse(prefix.with_suffix(".svg")).getroot()
     assert not any(node.tag.endswith("image") for node in drawing.iter())
+
+
+def test_web_export_cannot_reintroduce_a_filtered_perfect_helix(tmp_path, monkeypatch):
+    from coprarna import webserver
+
+    (tmp_path / "NC_000001_upfromstartpos_200_down_100.fa").write_text(
+        ">tag\n" + "C" * 32 + "\n"
+    )
+    (tmp_path / "CopraRNA_option_file.txt").write_text("intarna parameter file:\n")
+    (tmp_path / "CopraRNA_result.csv").write_text(
+        "fdr,p-value,NC_000001,Annotation,Additional homologs,Amount sampled\n"
+        "0.1,0.01,tag(g|-12|0.01|1|10|23|32|GeneID:1),annotation,,0\n"
+    )
+
+    def native(arguments, directory):
+        assert "--outNumber=2" in arguments
+        fields = next(
+            arg.split("=", 1)[1] for arg in arguments if arg.startswith("--outCsvCols=")
+        ).split(",")
+        with open_text(directory / "IntaRNA_web.csv.gz", "wt") as stream:
+            writer = csv.DictWriter(stream, fields, delimiter=";", lineterminator="\n")
+            writer.writeheader()
+            for pairs, score in [(32, -100), (10, -12)]:
+                record = dict.fromkeys(fields, "0")
+                record.update(
+                    row(pairs, query=32, target=32),
+                    id1="tag",
+                    id2="query",
+                    bpList="".join(f"({i},{33 - i})" for i in range(1, pairs + 1)),
+                    E=str(score),
+                    seedStart1="1",
+                    seedEnd1="7",
+                    seedStart2="26",
+                    seedEnd2="32",
+                    start1="1",
+                    end1=str(pairs),
+                    start2=str(33 - pairs),
+                    end2="32",
+                )
+                writer.writerow(record)
+        return ""
+
+    monkeypatch.setattr(webserver, "command", native)
+    webserver.export_prediction(tmp_path, "NC_000001", 200, 100)
+    assert len(read_text(tmp_path / "IntaRNA_web.csv.gz").splitlines()) == 2
+    audit = json.loads((tmp_path / "CopraRNA_web.filter.json").read_text())
+    assert audit["removed_perfect_helices"] == audit["retained_interactions"] == 1
+    report = (tmp_path / "coprarna_websrv_table.csv").read_text().splitlines()
+    assert len(report) == 2
+    assert report[1].split(",")[5] == "-12.00"

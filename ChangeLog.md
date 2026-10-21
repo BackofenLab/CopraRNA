@@ -111,6 +111,8 @@ Following [Martin Raden's review](https://github.com/BackofenLab/CopraRNA/pull/3
   that collide with required generated files before work starts.
 - Remove stacking-only helices spanning at least 90% of either RNA's effective
   sequence/accessibility-window length **before** fitting energy distributions.
+  Apply the same filter to native web exports before selecting a retained
+  interaction, so discarded best hits cannot reappear in reports.
   Record removed IDs/coordinates and retained counts. Reject insufficient variable
   data for GEV fitting rather than continuing with an unusable distribution.
 - Validate native prediction reuse with a hash of tool version, personality,

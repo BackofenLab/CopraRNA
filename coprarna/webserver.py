@@ -2,6 +2,7 @@
 
 from pathlib import Path
 import re
+import json
 from .runtime import command
 from . import parameters
 
@@ -92,7 +93,8 @@ def prepare_webserver_output(result: Path, interactions: Path, directory: Path) 
         match = re.search(r"GeneID:(\d+)\)", cell[8])
         gid = match[1] if match else ""
         start = next(
-            (i for i, line in enumerate(ui) if re.search(tag, line, re.I)), None
+            (i for i, line in enumerate(ui) if line.casefold() == ">" + tag.casefold()),
+            None,
         )
         block = [""] + (ui[start + 5 : start + 19] if start is not None else [""] * 14)
         block += [""] * (15 - len(block))
@@ -186,8 +188,10 @@ def format_interaction_ui(row):
 def export_prediction(directory, ooi, up, down):
     """Predict selected OOI targets as native gzip CSV and build frontend exports.
 
-    Forward the same parameter file as the primary run. Only the output schema
-    and one-interaction count are overridden to satisfy the web table contract."""
+    Forward the same parameter file and interaction count as the primary run.
+    Apply the same artificial-helix filter before choosing one retained native
+    interaction per target for the frontend. This prevents a removed best hit
+    from reappearing when the comparative result used a retained suboptimal hit."""
     from Bio import SeqIO
 
     path = directory / f"{ooi}_upfromstartpos_{up}_down_{down}.fa"
@@ -199,12 +203,10 @@ def export_prediction(directory, ooi, up, down):
             f">{r.id}\n{r.seq}\n"
             for tag in tags
             for r in records
-            if re.search(tag, r.id, re.I)
+            if tag.casefold() == r.id.casefold()
         )
     )
-    columns = (
-        "id1,seq1,id2,seq2,bpList,E,ED1,ED2,seedStart1,seedEnd1,seedStart2,seedEnd2"
-    )
+    columns = "id1,seq1,id2,seq2,bpList,E,ED1,ED2,seedStart1,seedEnd1,seedStart2,seedEnd2,hybridDP,start1,end1,start2,end2"
     command(
         [
             parameters.PERSONALITY,
@@ -215,16 +217,28 @@ def export_prediction(directory, ooi, up, down):
             f"ncRNA_{ooi}.fa",
             "--outMode=C",
             "--outCsvCols=" + columns,
-            "--outNumber=1",
+            *([] if "outNumber" in parameters.values(directory) else ["--outNumber=2"]),
             "--out=IntaRNA_web.csv.gz",
         ],
         directory,
     )
     from .rcompat import read_table
 
-    _, rows = read_table(directory / "IntaRNA_web.csv.gz", sep=";")
+    from .intarna import filter_perfect_helices
+
+    output = directory / "IntaRNA_web.csv.gz"
+    audit = filter_perfect_helices(output, parameters.values(directory))
+    (directory / "CopraRNA_web.filter.json").write_text(
+        json.dumps(audit, indent=2) + "\n"
+    )
+    _, rows = read_table(output, sep=";")
+    retained = {}
+    for row in rows:
+        tag = row[0].casefold()
+        if tag not in retained or float(row[5]) < float(retained[tag][5]):
+            retained[tag] = row
     (directory / "IntaRNA_web.txt").write_text(
-        "".join(format_interaction_ui(row) for row in rows)
+        "".join(format_interaction_ui(row[:12]) for row in retained.values())
     )
     prepare_webserver_output(
         directory / "CopraRNA_result.csv",

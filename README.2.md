@@ -98,9 +98,9 @@ File paths are relative to the job directory unless absolute. Every prediction
 invocation, including the web export, receives the parameter file. Inline text is
 materialized temporarily and removed even if prediction fails. A persistent
 `IntaRNA_parameters.txt` snapshot records the settings. CopraRNA sets its input,
-output format and required CSV columns; the web export requests one interaction
-per target. The primary prediction requests two interactions unless the parameter
-file supplies `outNumber`. Native prediction settings are not duplicated as
+output format and required CSV columns. Both prediction paths request two
+interactions unless the parameter file supplies `outNumber`; the web table selects
+one retained interaction per target after applying the same artifact filter. Native prediction settings are not duplicated as
 CopraRNA command-line options.
 
 Before fitting energy distributions, CopraRNA removes stacking-only, gap-free

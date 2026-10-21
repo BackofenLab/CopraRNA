@@ -224,3 +224,5 @@ regressions while each correction gets its own test and commit.
    normalized energy's column name.
 
 2. Extract each record's regions from that record's sequence/topology.
+
+3. Complement all IUPAC ambiguity symbols in reverse-strand flanks.

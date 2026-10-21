@@ -50,3 +50,12 @@ def test_region_features_use_their_own_genbank_record(tmp_path):
     assert actual == ">tag0\n" + "A" * 150 + "\n>tag1\n" + "C" * 150 + "\n"
     with legacy_behavior():
         assert parse_regions(path, 100, 50, "5utr").endswith("A" * 150 + "\n")
+
+
+def test_reverse_flanks_complement_iupac_ambiguity_and_case():
+    from coprarna.genome import _reverse_complement
+
+    assert _reverse_complement("ARYKMBVDHN") == "NDHBVKMRYT"
+    assert _reverse_complement("arykmbvdhn") == "ndhbvkmryt"
+    with legacy_behavior():
+        assert _reverse_complement("ARYKMBVDHN") == "NHDVBMKYRT"

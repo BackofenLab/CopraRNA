@@ -10,6 +10,12 @@ _COMPLEMENT = str.maketrans("gatcGATC", "ctagCTAG")
 
 
 def _reverse_complement(sequence: str) -> str:
+    from .compatibility import legacy_enabled
+
+    if not legacy_enabled():
+        from Bio.Seq import Seq
+
+        return str(Seq(sequence).reverse_complement())
     return sequence[::-1].translate(_COMPLEMENT)
 
 

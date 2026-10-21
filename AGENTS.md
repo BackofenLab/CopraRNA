@@ -1,268 +1,63 @@
-# CopraRNA Python 3 migration ledger
-
-## Scope and invariants
+# CopraRNA2 architecture and review ledger
 
 Issue: https://github.com/BackofenLab/CopraRNA/issues/1.
+Rewrite PR: https://github.com/BackofenLab/CopraRNA/pull/2.
+Follow-up PR: https://github.com/BackofenLab/CopraRNA/pull/3.
 
-Create an installable Python 3 implementation alongside the unchanged legacy
-sources. Preserve algorithms, heuristics, numerical behavior, ordering and output
-formats. Record defects here; do not silently fix them in the parity rewrite.
-Keep each major migration step in an atomic commit. Bug fixes belong on a separate
-branch and pull request after the parity implementation.
+## Current scope
 
-## Architecture and module mapping
+Martin's review (https://github.com/BackofenLab/CopraRNA/pull/3#issuecomment-6324702688)
+changes the follow-up to a CopraRNA2-only runtime. Its requested behavior changes
+supersede historical whole-workflow parity. Remove retired-mode code, tests and
+user documentation from the new implementation. Keep every original tracked
+legacy source byte unchanged for historical comparison; never invoke it from
+production. Keep substantial review changes in separate commits.
 
-- `CopraRNA2.pl`: pipeline and legacy CLI; destination `coprarna/pipeline.py` and
-  `coprarna/cli.py`.
-- `coprarna_aux/*.pl`: parsing, clustering, annotation and formatting helpers;
-  destinations under `coprarna/` with per-script mapping documents alongside the
-  originals.
-- `coprarna_aux/*.R`: statistical combination, filtering and plotting; Python
-  modules must be validated against legacy R outputs before claiming parity.
-- `coprarna_aux/*.py`: DAVID service clients; Python 3 service adapters.
-- `update_kegg2refseq/*`: organism mapping maintenance; Python maintenance module.
-- `tests/`: offline fixtures, exact-output legacy regression comparisons and
-  optional integration checks requiring external scientific tools.
-- `environment.yml`, `pyproject.toml`, `README.2.md`: reproducible dependencies,
-  package metadata and documentation for the new interface.
+## Architecture
 
-External scientific executables remain external dependencies; the new runtime
-must not invoke Perl, R, Bash or Python 2 scripts to implement migrated logic.
+- `pipeline.py`, `cli.py`: prediction configuration, isolated batches and cleanup.
+- `homology.py`, `genome.py`, `ncbi.py`, `annotation.py`: genome retrieval, shared
+  compressed genome database, streaming GenBank parsing and homology clustering.
+- `intarna.py`: IntaRNA >=3 / IntaRNAsTar, file or inline parameter configuration,
+  gzipped interactions and removal of near-full-length perfect helices.
+- `energy.py`, `combination.py`, `numerics.py`: validated GEV and comparative
+  statistical algorithms. Pin the validated NumPy/SciPy and BLAS reduction kernel.
+- `conservation.py`, `alignments.py`: consensus matrices and Jalview exports.
+- `plots.py`, `phylogeny.py`: PDF/SVG scientific figures and tree rendering.
+- `david.py`, `enrichment.py`, `webserver.py`: optional service and web exports.
+- `io.py`: streaming compressed/plain file access shared by producers/consumers.
+- Adjacent `.md` mapping documents and `migration.json` distinguish active and
+  intentionally retired scripts; no retired helper is advertised as implemented.
 
-## Workflow
+## Code documentation
 
-Inspect each legacy component before porting. Capture deterministic legacy outputs
-and compare bytes where applicable. Document missing runtimes, network resources,
-fixtures and numerical validation explicitly. Never claim full workflow parity
-from helper-level checks. Preserve all tracked original source bytes.
+Document each new or changed public function with its purpose, input/output
+contract, file side effects and failure behavior where relevant. For scientific
+algorithms, explain coordinate systems, matrix dimensions, statistical conventions
+and differences deliberately retained for oracle comparisons. Add inline comments
+for non-obvious numerical choices, native-tool interface constraints and cache
+publication/lifetime rules. Keep documentation accurate when changing behavior;
+do not add comments that merely restate individual statements. Record release-facing
+changes and their rationale in `ChangeLog.md`.
+
+## Validation policy
+
+Keep exact captured CopraRNA2 helper/statistical oracles where behavior is retained.
+Test requested changes against explicit contracts and real native integrations.
+Do not regenerate old numerical expectations from the translated implementation.
+R-data objects are compared semantically; original sources have checksum tests.
+SVG/PDF are primary output formats; no PostScript/Ghostscript dependency remains.
+Preserve the user's original input FASTA, including when its name is input_sRNA.fa.
+Keep downloaded genomes compressed and reuse shared database paths directly.
 
 ## Progress
 
-- Repository cloned into `/home/alex/CodexProjects/CopraRNA`.
-- Phase 0: architectural ledger initialized before implementation.
-- Phases 1–6: pending repository audit and baseline validation.
-
-## Legacy defects and compatibility decisions
-
-Pending audit. Fixes require separate tests and a separate branch/PR.
-
-### Phase 1 audit
-
-No upstream tests, sRNA examples or expected result directories are tracked.
-The 17 compressed GenBank reference genomes can support real-data parser tests.
-`tests/support/legacy.py` captures stdout and declared files in isolated temporary
-working directories; golden fixtures are versioned. Oracle runtimes may be supplied
-through `COPRARNA_LEGACY_PERL` and `COPRARNA_LEGACY_RSCRIPT`.
-The local reusable oracle runtimes are Perl 5.26.2 (virsorter1 environment) and
-R 4.4.3 (virfinder environment). These differ from the historical versions in the
-README; numerical parity claims must specify the oracle actually used.
-
-The migration environment is specified separately from the legacy comparison
-environment. Conda specifications are compatibility targets, not solved locks.
-
-Known parity hazards discovered during audit:
-- Perl hash iteration randomizes output row order in several helpers. Fixtures
-  mark those files explicitly; comparisons sort only the unordered body rows.
-- `join_pvals_coprarna1.R` samples missing values without a fixed random seed.
-- `remove_clusters_under_percantage.R` renames column 35 rather than 36.
-- `parse_region_from_genome.pl` always extracts sequence from the first GenBank
-  record, including when iterating features of later records.
-
-Phase 1 validation: 28 captured legacy fixture cases plus the original-source
-checksum test pass (29 tests). All golden files were captured before porting.
-The fixtures include a full GEV fit oracle; this does not establish Python GEV
-parity. Oracle commands used the explicit runtime paths described above.
-
-### Phase 2: sequence, table and phylogeny helpers
-
-Implemented Python ports in `fasta.py`, `genome.py`, `tables.py`, `annotation.py`,
-`phylogeny.py` and `statistics.py`. The 28 migrated synthetic fixture cases match
-legacy outputs (byte comparisons, except explicitly unordered Perl hash bodies).
-
-Real-genome validation exposed a translation error in compound locations spanning
-the circular origin. BioPerl keeps the location-list order; Biopython reverses a
-complemented location list. The port now reverses only complemented lists and
-preserves origin-spanning joins. This corrects the translation, not legacy logic.
-The affected NC_000911 genome now matches all three regions; the other 16 genomes
-already matched all three regions. Total: all 51 real-genome/region comparisons
-have passed with the final location handling (16 genomes before the correction;
-one affected genome afterward).
-
-Not yet ported: GEV fitting, correlated p-value joining, consensus/conservation,
-plotting, full pipeline orchestration, webserver rendering and maintenance tools.
-No complete end-to-end rewrite or whole-workflow equivalence is claimed.
-
-### Export helpers, CLI and packaging
-
-Added byte-validated enrichment JSON and specific-target exports, the unchanged
-archive README resource, and compressed copies of the unchanged organism tables.
-`helpers.py` is the production dispatch shared by the CLI and parity tests.
-`cli.py` provides single-helper execution and independent bounded-concurrency
-batch jobs; `pyproject.toml` packages only the Python implementation and its data.
-`migration.json` and per-script `.md` files distinguish actual ports from intended
-future targets. The CLI does not expose an unimplemented prediction command.
-
-The first complete environment solve failed: historical ViennaRNA 2.4.14 builds
-require Python 2, and MAFFT 7.310 conflicts with strict modern channel priority.
-`environment.yml` therefore specifies only the actual helper dependencies;
-whole-workflow historical tools are recorded separately in the unvalidated
-`environment-legacy.yml`. A future complete Bioconda recipe remains outstanding.
-
-Additional legacy defects retained/documented:
-- Heatmap JSON is assembled without escaping feature/source strings.
-- `get_CDS_from_gbk.pl` searches the mapping using the input filename minus three
-  characters, so passing a path can prevent organism-code lookup.
-- The region parser complements only A/C/G/T in flanking regions, not all IUPAC.
-- `disentangle_sorted_intarna_CSV.pl` keeps the last suboptimal row if more than
-  two interactions exist for a target.
-
-Full rewrite completion and the separate bug-fix PR are still pending. Do not use
-closing issue keywords in a draft PR for this incremental implementation.
-
-Final validation progress:
-- Full final real-genome rerun: 17/17 genomes, all three region modes passed.
-- Small-fixture/oracle/CLI suite: 78 tests passed; 17 real-genome tests are
-  intentionally opt-in in the default run (verified separately above).
-- Additional R-derived numeric fixtures verify scientific notation and numeric
-  type conversion, preventing text-format drift in the preprocessing ports.
-- The revised helper Conda specification solved successfully; a fresh pinned
-  environment and installed-wheel smoke checks are being validated.
-
-Pinned-environment validation found a BioPython-version compatibility difference:
-1.84 retains internal tabs in parsed FASTA sequences, while 1.86 removes them.
-`fasta.format_fasta` now removes sequence whitespace explicitly, as BioPerl does.
-This is a port correction, not a legacy behavioral change. All 45 Python
-parity/CLI/inventory tests pass with the pinned Python 3.11 / BioPython 1.84.
-
-Distribution checks completed:
-- Fresh `environment.yml` installation succeeded on linux-64.
-- The installed wheel was exercised outside the repository: all 33 migrated
-  fixture cases passed through the console entry point with exact-output checks.
-- The wheel contains no legacy scripts; the source archive retains every
-  original tracked file with its original checksum.
-- `tests/fixtures/provenance.json` records oracle and Python dependency versions.
-- Ruff and `git diff --check` pass. CI covers Python 3.11–3.13, source builds and
-  an installed-wheel smoke test. Historical whole-workflow environment, full
-  numerical parity, the prediction CLI and the bug-fix PR remain pending.
-
-Final complete validation: **97 tests passed** in the fresh pinned Python 3.11 /
-Biopython 1.84 environment with both legacy oracle runtimes and
-`COPRARNA_REFERENCE_TESTS=1` enabled. This includes all 17 bundled real genomes,
-each checked in 5utr, 3utr and cds modes (51 exact-output comparisons).
-
-CI found that Git omits the archive-README fixture's empty input directory. Added
-an explicit `.gitkeep` and updated the fixture builder so clean checkouts retain
-that input directory. This changes only test fixture transport, not runtime logic.
-
-## Continuation: completing issue 1
-
-The GEV simplex fit, CopraRNA1 seeded missing-value sampling and CopraRNA2 subset
-joining are now implemented in `energy.py`, `numerics.py` and `combination.py`.
-`rcompat.py` preserves table formatting and writes native R-data archives through
-a pure Python serializer. New independently captured 120-cluster/four-organism
-fixtures exercise full and missing homolog sets. All 73 statistical/helper oracle
-and Python parity checks pass, including byte-exact CopraRNA1 and all CopraRNA2
-result files. Matching the nonlinear fits required preserving R's reciprocal
-scaling in LINPACK QR and the empirical-CDF multiplication order.
-
-New legacy defect: `join_pvals_coprarna1.R` reads `h$intensities`, but histogram
-objects expose `density`. The absent member yields NULL and an error score of
-zero for every candidate rho. The rewrite preserves this behavior and still
-consumes the same random draws; a fix belongs in the separate bug-fix branch.
-
-The full native orchestration and reporting modules are under integration test.
-A synthetic offline three-genome fixture uses the supported imported-cluster
-path. The installed DomClust 1.2.8 no longer implements the advertised `-o5` table
-mode, so the original invocation produces list output instead of the requested
-table. This invocation defect is reserved for the bug-fix branch.
-
-### Complete workflow and reporting validation
-
-All 41 original scripts now have Python counterparts. The full synthetic
-three-genome/30-cluster workflow matches legacy prediction CSVs, weights,
-phylogeny distances and target alignments byte for byte. All 203 Jalview exports
-match exactly, including R's retained source row numbers and padded matrix
-columns. Conservation, interaction and sparse named consensus R objects are
-checked semantically; serialization headers and compression are not compared.
-The seeded full CopraRNA1 workflow also matches final tables and sampled outputs.
-
-Plot geometry, heatmap scores, annotations and average-linkage leaf order match
-independently captured R data. Matplotlib replaces R rendering, so typography
-and PDF/PS bytes differ. Ghostscript preserves all pages in PostScript exports.
-Chromium replaces PhantomJS and is tested by real PNG/PDF rendering. SOAP clients
-are compared directly with the unchanged Python source using an offline client;
-NCBI request contracts and cached-file behavior are tested without live services.
-The seeded organism-list fixture was captured from untouched Perl/Bash sources.
-
-Modern IntaRNA removed old UI modes. The Python webserver adapter reproduces the
-IntaRNA v2.2.0 `OutputHandlerIntaRNA1.cpp` ASCII layout from native CSV/base-pair
-data, using the original Perl wrapper's scientific options. No legacy wrapper is
-executed. The original CopraRNA formatter is still independently byte-validated.
-
-The fresh full `environment.yml` install succeeded after clearing disposable task
-caches. Runtime pins now include the native scientific executables and Python
-statistics/reporting dependencies. Full pipeline tests are opt-in because they
-require these executables; the complete offline fixture is committed for CI.
-Remaining work in this task is verification/publishing and the separate bug-fix
-branch required by phase 6, not additional unported components.
-
-Final rewrite validation: **120 tests passed** in 140.78 seconds in the fresh
-Python 3.12 pinned environment, with both legacy runtimes, all 17 reference
-genomes, both complete native workflows and Chromium enabled. Source/wheel builds
-succeeded; the installed console entry point and inventory work from outside the
-repository. The R peak finder safely ends at the right boundary because
-R evaluates `NA & FALSE` as FALSE; the Python bounds check preserves that behavior.
-
-## Phase 6: isolated bug fixes
-
-The stacked branch adds an explicit `--legacy` compatibility mode; corrected
-behavior is the default. A ContextVar isolates modes between independent batch
-jobs. Oracle fixtures explicitly use legacy mode, retaining the original rewrite
-regressions while each correction gets its own test and commit.
-
-1. Fix the cluster-size filter's p-value header index (36th column); retain
-   normalized energy's column name.
-
-2. Extract each record's regions from that record's sequence/topology.
-
-3. Complement all IUPAC ambiguity symbols in reverse-strand flanks.
-
-4. Resolve organism codes using the GenBank basename for absolute paths.
-
-5. Keep the first (second-best overall) suboptimal row in energy-sorted input.
-
-6. Escape feature/source strings when emitting enrichment JSON.
-
-7. Score CopraRNA1 candidate correlations using histogram density; the
-   legacy nonexistent intensities property made every candidate score zero.
-
-8. Put DomClust options before positional inputs. Native integration then
-   established that option ordering alone does not restore its obsolete mode 5;
-   the supported mode-9 conversion below completes this fix.
-
-9. Render lowercase cds plots with nucleotide coordinates instead of rejecting
-   the CLI's valid region spelling.
-
-10. Clamp plots to available prediction rows, including fewer than 15, so the
-    default topcount no longer indexes beyond a short result set.
-CI portability audit: exact nonlinear fits depend on BLAS reduction order. Pin
-NumPy/SciPy and the validated Haswell/Zen AVX2 kernel instead of weakening the
-byte-comparison tests. Linux AVX2 imports select this kernel before NumPy loads;
-CI sets it explicitly because tests can import NumPy before CopraRNA. Other
-BLAS/CPU configurations remain outside the certified parity environment.
-
-11. Use supported DomClust mode 9 and convert memberships into the required
-    per-organism table, retaining domains and missing organisms. Source inspection
-    confirms mode 5's table implementation is obsolete in 1.2.8.
-
-The rewrite PR's full CI matrix now passes with the pinned numerical runtime.
-A corrected native run without imported clusters produces all 30 predictions.
-The modern integration test additionally exercises webserver exports, cleanup,
-Jalview archiving and two-page PDF/PS output at the default topcount.
-
-Final phase-6 validation covers **132 passing checks**: all 131 remaining tests
-passed in the complete oracle/reference/browser run; the corrected full-workflow
-export/cleanup test passed on its targeted rerun. The web table deliberately
-omits the one cluster lacking an organism-of-interest interaction. All ten
-identified defects have dedicated regressions and isolated commits; DomClust's
-mode-9 conversion additionally tests split domains and missing species.
+- Previous rewrite and fixes were delivered with CI green on Python 3.11–3.13,
+  exact statistical/report fixtures, 51 region comparisons on 17 reference genomes,
+  native workflows, browser rendering and installed-wheel checks.
+- Current review: current-only runtime, native parameter files, gzip/cache support,
+  helix filtering, vector reports, documentation and current dependencies implemented.
+  Fresh environment, retained numerical fixtures and native workflows pass; final
+  release checks and CI are recorded in the follow-up PR.
+- Live external service availability is not certified. Offline adapters retain
+  request tests. New dependencies/UI versions must be checked before pin updates.

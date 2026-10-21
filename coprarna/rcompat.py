@@ -34,13 +34,13 @@ def scalar(value, quote=False):
 def write_table(path, header, rows, sep=",", quote=False, row_names=False):
     lines = []
     if header is not None:
-        lines.append(
-            sep.join(
-                scalar(v, quote) for v in ([""] if row_names else []) + list(header)
-            )
-        )
+        lines.append(sep.join(scalar(v, quote) for v in header))
     for i, row in enumerate(rows, 1):
-        cells = ([str(i)] if row_names else []) + list(row)
+        cells = (
+            [str(i) if row_names is True else str(row_names[i - 1])]
+            if row_names
+            else []
+        ) + list(row)
         lines.append(sep.join(scalar(v, quote) for v in cells))
     Path(path).write_text("\n".join(lines) + "\n")
 
@@ -68,6 +68,12 @@ class RMatrix:
         self.rows = rows
 
 
+class RNamedList:
+    def __init__(self, values, names):
+        self.values = values
+        self.names = names
+
+
 def save_rdata(path, name, values, *, names=None, columns=None):
     import rdata
 
@@ -83,9 +89,21 @@ def save_rdata(path, name, values, *, names=None, columns=None):
         data.info.attributes = True
         return data
 
+    def named_list(value, converter):
+        data = converter.convert_to_r_object(value.values)
+        data.attributes = converter.convert_to_r_attributes(
+            {"names": np.array(value.names, dtype=object)}
+        )
+        data.info.attributes = True
+        return data
+
     if columns is not None:
         values = [RMatrix(value, columns) for value in values]
-    rdata.write_rda(path, {name: values}, constructor_dict={RMatrix: constructor})
+    rdata.write_rda(
+        path,
+        {name: values},
+        constructor_dict={RMatrix: constructor, RNamedList: named_list},
+    )
 
 
 def load_rdata(path, name):
@@ -107,3 +125,40 @@ def load_rdata(path, name):
         return value
 
     return convert(parsed.object.value[0])
+
+
+def format_matrix_column(values, digits=7):
+    """Common precision used when R converts a numeric data-frame column to text."""
+    from decimal import Decimal
+
+    finite = [
+        float(value)
+        for value in values
+        if value is not None and math.isfinite(float(value))
+    ]
+    if not finite:
+        return ["NA"] * len(values)
+    rounded = [format(value, f".{digits}g") for value in finite]
+    fixed = [format(Decimal(value), "f") for value in rounded]
+    decimals = max((len(value.split(".")[1]) if "." in value else 0) for value in fixed)
+    significant = max(
+        len(value.lstrip("-0").replace(".", "").lstrip("0").rstrip("0"))
+        for value in fixed
+    )
+    significant = max(1, significant)
+    as_fixed = [format(value, f".{decimals}f") for value in finite]
+    as_scientific = [format(value, f".{significant - 1}e") for value in finite]
+    scientific = max(map(len, as_scientific)) < max(map(len, as_fixed))
+    output = []
+    for value in values:
+        if value is None or math.isnan(float(value)):
+            output.append("NA")
+        else:
+            output.append(
+                format(
+                    float(value),
+                    f".{significant - 1}e" if scientific else f".{decimals}f",
+                )
+            )
+    width = max(map(len, output), default=0)
+    return [value.rjust(width) for value in output]

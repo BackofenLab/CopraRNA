@@ -318,7 +318,7 @@ def _histogram_error(values):
     fuzzy = breaks + fuzz
     fuzzy[0] -= 2 * fuzz
     bins = np.searchsorted(fuzzy, values, side="left") - 1
-    counts = np.bincount(np.clip(bins, 0, len(breaks) - 2), minlength=len(breaks) - 1)
+    _counts = np.bincount(np.clip(bins, 0, len(breaks) - 2), minlength=len(breaks) - 1)
     # Legacy hist objects have density, not intensities. Accessing the absent
     # intensities member yields NULL, and sum((1-NULL)^2) is zero.
     return 0.0

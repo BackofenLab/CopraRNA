@@ -95,3 +95,18 @@ def compute_weights(treefile: Path, neighborfile: Path) -> str:
             for _ in flipped.get(root, {}):
                 weights[leaf] = calculate(root, branch)
     return "".join(f"{leaf};{weights[leaf]:.7f}\n" for leaf in sorted(weights))
+
+
+def render_tree(treefile, output):
+    """Render branch-length Newick trees to SVG using Python dependencies only."""
+    from Bio import Phylo
+    from .plots import _pyplot
+
+    tree = Phylo.read(treefile, "newick")
+    plt = _pyplot()
+    fig, axis = plt.subplots(figsize=(7, max(2, len(tree.get_terminals()) * 0.35)))
+    Phylo.draw(tree, axes=axis, do_show=False, show_confidence=False)
+    axis.set_xlabel("Evolutionary distance")
+    fig.tight_layout()
+    fig.savefig(output, format="svg")
+    plt.close(fig)

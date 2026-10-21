@@ -3,7 +3,6 @@
 from dataclasses import dataclass
 from pathlib import Path
 
-from .compatibility import legacy_enabled
 
 from . import (
     energy,
@@ -63,7 +62,7 @@ HELPERS = {
     "sampled-count": Helper(
         "get_amount_sampled_values_and_add_to_table.pl",
         "coprarna.tables.add_sampled_count",
-        ("result-table", "copra2"),
+        ("result-table",),
     ),
     "additional-homologs": Helper(
         "parse_homologs_from_domclust_table.pl",
@@ -102,9 +101,6 @@ HELPERS = {
     "prepare-copra2": Helper(
         "prep_cop2.R", "coprarna.statistics.prepare_copra2", ("clustered-table",)
     ),
-    "filter-clusters": Helper(
-        "remove_clusters_under_percantage.R", "coprarna.statistics.filter_clusters", ()
-    ),
     "heatmap-json": Helper(
         "make_heatmap_json.pl", "coprarna.exports.heatmap_json", ("enrichment-table",)
     ),
@@ -122,11 +118,6 @@ HELPERS.update(
     {
         "fit-energy": Helper(
             "add_pval_to_csv_evdfit.R", "coprarna.energy.add_energy_pvalues", ()
-        ),
-        "join-copra1": Helper(
-            "join_pvals_coprarna1.R",
-            "coprarna.combination.join_copra1",
-            ("clustered-table",),
         ),
         "join-copra2": Helper(
             "join_pvals_coprarna2.R",
@@ -235,6 +226,7 @@ HELPERS.update(
 
 
 def resolve(name: str) -> str:
+    """Resolve an active helper name or original-script basename; reject retired names."""
     if name in HELPERS:
         return name
     for key, helper in HELPERS.items():
@@ -248,6 +240,7 @@ def resolve(name: str) -> str:
 def run_helper(
     name: str, args: list[str], directory: Path, *, seed=None, legacy=False
 ) -> str:
+    """Run one helper with a scoped, thread-local historical compatibility choice."""
     from .compatibility import legacy_behavior
 
     with legacy_behavior(legacy):
@@ -288,7 +281,7 @@ def _run_helper(name: str, args: list[str], directory: Path, *, seed=None) -> st
     if name == "cluster-predictions":
         return tables.cluster_predictions(directory)
     if name == "sampled-count":
-        return tables.add_sampled_count(path(0), bool(int(args[1])))
+        return tables.add_sampled_count(path(0))
     if name == "additional-homologs":
         return tables.additional_homologs(path(0), path(1))
     if name == "enrichment-report":
@@ -305,8 +298,6 @@ def _run_helper(name: str, args: list[str], directory: Path, *, seed=None) -> st
         return statistics.adjust_pvalues(path(0), directory)
     if name == "prepare-copra2":
         return statistics.prepare_copra2(path(0), directory)
-    if name == "filter-clusters":
-        return statistics.filter_clusters(directory)
     if name == "heatmap-json":
         return exports.heatmap_json(path(0))
     if name == "specific-targets":
@@ -315,8 +306,6 @@ def _run_helper(name: str, args: list[str], directory: Path, *, seed=None) -> st
         return resources.archive_readme()
     if name == "fit-energy":
         return energy.add_energy_pvalues(directory)
-    if name == "join-copra1":
-        return combination.join_copra1(path(0), directory, seed)
     if name == "join-copra2":
         return combination.join_copra2(args[0], directory, *args[1:])
     from . import (
@@ -337,21 +326,18 @@ def _run_helper(name: str, args: list[str], directory: Path, *, seed=None) -> st
         return pipeline.run_prediction(
             path(0),
             directory,
-            pipeline.Config(
-                seed=seed,
-                legacy=legacy_enabled(),
-            ),
+            pipeline.Config(),
         )
     if name == "homology":
         return homology.run_homology(
-            path(0), int(args[1]), int(args[2]), args[3], args[4:], directory, seed
+            path(0), int(args[1]), int(args[2]), args[3], args[4:], directory
         )
     if name == "prepare-intarna":
         return intarna.prepare_predictions(
             path(0), int(args[1]), int(args[2]), args[3], args[4:], directory
         )
     if name == "combine-clusters":
-        return combination.combine_clusters(int(args[0]), directory, seed)
+        return combination.combine_clusters(int(args[0]), directory)
     if name == "download-genbank":
         if args[0] != "-acc" or args[2] not in ("-g", "--genome"):
             raise ValueError("expected -acc accession -g output")

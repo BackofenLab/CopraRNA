@@ -1,4 +1,4 @@
-"""Complete Python command-line workflow, retaining CopraRNA 2.1.3 options."""
+"""Complete CopraRNA2 prediction workflow and output organization."""
 
 from dataclasses import dataclass
 from pathlib import Path
@@ -6,6 +6,8 @@ import logging
 import re
 import shutil
 import zipfile
+import tempfile
+from . import parameters
 from .fasta import format_fasta
 from . import homology, plots
 from .statistics import r_number
@@ -15,14 +17,18 @@ LOG = logging.getLogger("coprarna")
 
 @dataclass
 class Config:
+    """CopraRNA2 job options; native prediction settings belong in the parameter file.
+
+    Paths supplied by callers are resolved against the job directory. The first
+    sRNA record selects the organism of interest unless ``nooi`` is enabled."""
+
     ntup: int = 200
     ntdown: int = 100
     region: str = "5utr"
-    rcsize: float = 0.5
     cores: int = 1
-    winsize: int = 150
-    maxbpdist: int = 100
-    cop1: bool = False
+    intarna_params: str | None = None
+    intarna_params_text: str | None = None
+    genome_db: str | None = None
     verbose: bool = False
     websrv: bool = False
     nooi: bool = False
@@ -32,17 +38,19 @@ class Config:
     noclean: bool = False
     cons: int = 0
     ooifilt: float = 0.0
-    seed: int | None = None
-    legacy: bool = False
 
 
 def _validate(path, config, directory):
+    """Validate accessions, sequence content and generated-name collisions.
+
+    Return ordered record IDs without changing the input file. Names that would
+    be overwritten by required workflow files are rejected before work begins."""
     if not path.exists():
         raise ValueError("No input FASTA supplied!")
-    text = path.read_text()
-    headers = [
-        line.replace(">", "").strip() for line in text.splitlines() if ">" in line
-    ]
+    from Bio import SeqIO
+
+    records = list(SeqIO.parse(path, "fasta"))
+    headers = [record.id for record in records]
     if len(headers) < 3:
         raise ValueError("The input file seems to contain less than 3 sequences!")
     if not 0 <= config.ooifilt <= 1:
@@ -54,48 +62,58 @@ def _validate(path, config, directory):
         raise ValueError("cons must be one of 0, 1 or 2")
     if config.cons == 1 and config.nooi:
         raise ValueError("cons 1 can not be combined with nooi")
-    if config.cons and config.cop1:
-        raise ValueError("cons must be 0 for cop1 prediction")
-    (directory / "find_gaps.txt").write_text(
-        "".join(line + "\n" for line in text.splitlines() if "-" in line)
-    )
-    if "-" in text:
+    if any("-" in str(record.seq) for record in records):
         raise ValueError("Gaps are present in sRNA sequences")
+    if path.resolve().parent == directory.resolve() and (
+        path.resolve().name
+        in {
+            "ncrna.fa",
+            "aligned_sRNA.fa",
+            "ncrna_aligned.fa",
+            "fasta_temp_file",
+            "CopraRNA_option_file.txt",
+            "genome_paths.txt",
+            "IntaRNA_parameters.txt",
+        }
+        or re.search(
+            r"^ncRNA_N[CZ]_|_upfromstartpos_\d+_down_\d+\.fa$", path.resolve().name
+        )
+    ):
+        raise ValueError(
+            "The input FASTA name collides with a generated file; use a separate working directory"
+        )
     mapping = homology.affiliations()
     for identifier in headers:
         if not re.search(r"NC_\d{6}|NZ_.*", identifier):
             raise ValueError(f"{identifier} does not match correct RefSeq ID format")
         if identifier not in mapping:
             raise ValueError(f"{identifier} is not present in the availability list")
-    if config.maxbpdist > config.winsize:
-        raise ValueError("maxbpdist must be <= winsize")
-    if (
-        config.region in ("5utr", "3utr")
-        and config.ntup + config.ntdown < config.winsize
-    ):
-        raise ValueError("ntup + ntdown must be >= winsize")
-    if not 0 <= config.rcsize <= 1:
-        raise ValueError("rcsize must be between 0 and 1")
     if len(headers) != len(set(headers)):
         raise ValueError("Duplicate organisms are present in input")
     return headers
 
 
 def _cleanup(directory, config):
+    """Organize generated reports and remove disposable intermediates.
+
+    Every deletion/move guards the resolved original FASTA path. Compressed
+    genomes stay in their cache; raw gzip predictions and filter audits are kept."""
+    from .runtime import options
+
+    options_original = options(directory)["sRNA FASTA"]
     patterns = (
         ["ncrna_aligned.fa"]
-        + ([] if config.legacy else ["cluster.members"])
-        + ([] if config.cop1 else ["aligned_sRNA.fa"])
+        + ["cluster.members"]
+        + ["aligned_sRNA.fa"]
         + [
-            "*.gb",
             "compatible.distmat.mapped",
             "err.log",
             "*anno*",
             "padj.csv",
             "*pvalues*",
             "ncRNA_*",
-            "*.fa.intarna.sorted.csv",
-            "*opt.intarna.csv",
+            "*.fa.intarna.sorted.csv*",
+            "*opt.intarna.csv*",
             "gene_CDS_exception.txt",
             "find_gaps.txt",
             "distmat.out",
@@ -109,8 +127,6 @@ def _cleanup(directory, config):
             "N_chars_in_CDS.txt",
         ]
     )
-    if config.cop1:
-        patterns += ["*pvsample*", "CopraRNA1_final_all.csv", "CopraRNA1_final.csv"]
     if config.enrich:
         patterns += [
             "enrichment.txt",
@@ -123,13 +139,17 @@ def _cleanup(directory, config):
         patterns += ["*IntaRNA1_ui*", "*top_targets*"]
     for pattern in patterns:
         for path in directory.glob(pattern):
-            if path.is_file():
+            if path.is_file() and path.resolve() != Path(options_original).resolve():
                 path.unlink()
     for path in directory.iterdir():
-        if re.fullmatch(r".*fa\d+", path.name) and path.is_file():
+        if (
+            re.fullmatch(r".*fa\d+", path.name)
+            and path.is_file()
+            and path.resolve() != Path(options_original).resolve()
+        ):
             path.unlink()
     for subdir, patterns in [
-        ("IntaRNA", ["*.fa.intarna.csv"]),
+        ("IntaRNA", ["*.fa.intarna.csv.gz", "*.filter.json"]),
         ("Phylogeny", ["compatible.*", "16s_sequences.*"]),
         ("FASTA", ["*.fa"]),
         ("Regions_plots", ["*regions*"] + (["thumbnail_*"] if config.websrv else [])),
@@ -137,7 +157,10 @@ def _cleanup(directory, config):
         (directory / subdir).mkdir(exist_ok=True)
         for pattern in patterns:
             for path in directory.glob(pattern):
-                if path.is_file():
+                if (
+                    path.is_file()
+                    and path.resolve() != Path(options_original).resolve()
+                ):
                     shutil.move(str(path), directory / subdir / path.name)
     if config.enrich:
         (directory / "Enrichment").mkdir(exist_ok=True)
@@ -150,20 +173,19 @@ def _cleanup(directory, config):
         ):
             for path in directory.glob(pattern):
                 shutil.move(str(path), directory / "Enrichment" / path.name)
-    if not config.cop1:
-        (directory / "all_predictions").mkdir(exist_ok=True)
-        for path in directory.glob("*.csv"):
-            if path.name not in (
-                "CopraRNA_result.csv",
-                "CopraRNA_result_all.csv",
-                "coprarna_websrv_table.csv",
-            ):
-                shutil.move(str(path), directory / "all_predictions" / path.name)
-        (directory / "Rdata").mkdir(exist_ok=True)
-        for path in directory.glob("*.Rdata"):
-            shutil.move(str(path), directory / "Rdata" / path.name)
-        for name in ("target_alignments",):
-            shutil.rmtree(directory / name, ignore_errors=True)
+    (directory / "all_predictions").mkdir(exist_ok=True)
+    for path in directory.glob("*.csv"):
+        if path.resolve() != Path(options_original).resolve() and path.name not in (
+            "CopraRNA_result.csv",
+            "CopraRNA_result_all.csv",
+            "coprarna_websrv_table.csv",
+        ):
+            shutil.move(str(path), directory / "all_predictions" / path.name)
+    (directory / "Rdata").mkdir(exist_ok=True)
+    for path in directory.glob("*.Rdata"):
+        shutil.move(str(path), directory / "Rdata" / path.name)
+    for name in ("target_alignments",):
+        shutil.rmtree(directory / name, ignore_errors=True)
     evo = directory / "evo_alignments"
     if evo.exists():
         with zipfile.ZipFile(
@@ -179,29 +201,72 @@ def _cleanup(directory, config):
 
 
 def run_prediction(srna: Path, directory: Path, config: Config | None = None) -> str:
+    """Run one complete prediction in an isolated working directory.
+
+    Always select corrected production behavior, even when called from a helper
+    or a caller with an active historical comparison context. Return empty stdout;
+    scientific results are files and failures propagate as exceptions."""
     config = config or Config()
     from .compatibility import legacy_behavior
 
-    with legacy_behavior(config.legacy):
+    with legacy_behavior(False):
         return _run_prediction(srna, directory, config)
 
 
 def _run_prediction(srna, directory, config):
+    """Prepare an immutable input copy, database path and scoped native parameters."""
     directory = Path(directory).resolve()
     directory.mkdir(parents=True, exist_ok=True)
     srna = Path(srna)
     srna = srna if srna.is_absolute() else directory / srna
     headers = _validate(srna, config, directory)
+    if config.intarna_params is not None and config.intarna_params_text is not None:
+        raise ValueError("Supply an IntaRNA parameter file or inline text, not both")
+    (directory / "FASTA").mkdir(exist_ok=True)
+    with tempfile.NamedTemporaryFile(
+        mode="w",
+        encoding="utf-8",
+        suffix=".fa",
+        prefix="coprarna_input_",
+        dir=directory / "FASTA",
+        delete=False,
+    ) as stream:
+        stream.write(format_fasta(srna))
+        working = Path(stream.name)
+    database = (
+        Path(config.genome_db).expanduser()
+        if config.genome_db
+        else directory / "genomes"
+    )
+    if not database.is_absolute():
+        database = directory / database
+    with parameters.parameter_file(
+        directory, config.intarna_params, config.intarna_params_text
+    ) as parameter_path:
+        return _execute(
+            directory,
+            config,
+            headers,
+            srna,
+            working,
+            database.resolve(),
+            parameter_path,
+        )
+
+
+def _execute(directory, config, headers, srna, working, database, parameter_path):
+    """Write named options, run homology/prediction, plot results and organize files."""
+    version = parameters.check_version(directory)
     labels = [
-        ("sRNA FASTA", str(srna) if srna.name != "input_sRNA.fa" else "input_sRNA.fa"),
+        ("sRNA FASTA", str(srna.resolve())),
+        ("working sRNA FASTA", str(working)),
+        ("genome database", str(database)),
+        ("intarna parameter file", str(parameter_path) if parameter_path else ""),
+        ("IntaRNA version", version),
         ("nt upstream", config.ntup),
         ("nt downstream", config.ntdown),
         ("region", config.region),
-        ("relative clustersize", config.rcsize),
         ("core count", config.cores),
-        ("win size", config.winsize),
-        ("max bp dist", config.maxbpdist),
-        ("CopraRNA1", int(config.cop1)),
         ("verbose", int(config.verbose)),
         ("websrv", int(config.websrv)),
         ("nooi", int(config.nooi)),
@@ -219,17 +284,14 @@ def _run_prediction(srna, directory, config):
             for key, value in labels
         )
     )
-    formatted = format_fasta(srna)
-    (directory / "input_sRNA.fa").write_text(formatted)
     (directory / "err.log").touch()
     homology.run_homology(
-        directory / "input_sRNA.fa",
+        working,
         config.ntup,
         config.ntdown,
         config.region,
         headers,
         directory,
-        config.seed,
     )
     warnings = []
     for line in (directory / "zscore.weight").read_text().splitlines():
@@ -246,7 +308,7 @@ def _run_prediction(srna, directory, config):
             directory / "CopraRNA_result_all.csv", config.topcount, directory
         )
     except ValueError as exc:
-        LOG.warning("Legacy-compatible plotting failure: %s", exc)
+        LOG.warning("Interaction-region plotting failed: %s", exc)
     if not config.noclean:
         _cleanup(directory, config)
     return ""

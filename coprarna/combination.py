@@ -10,10 +10,15 @@ from scipy.linalg.blas import dnrm2, ddot, daxpy
 
 from .numerics import r_sum, normal_upper, normal_probit
 from .rcompat import read_table, write_table, numeric_columns, make_names, load_rdata
-from .statistics import bh_adjust, r_number
+from .statistics import bh_adjust
 
 
 def fit_rho(probits, weights):
+    """Fit inter-organism correlation against a uniform empirical p-value CDF.
+
+    The one-parameter least-squares iteration follows R nls: finite-difference
+    gradient, LINPACK-style Householder rounding and step halving. BLAS reduction
+    order matters for byte parity; do not replace this with a generic optimizer."""
     a = np.array([r_sum(row * weights) for row in probits])
     d = r_sum(np.asarray(weights) ** 2)
     b = r_sum(weights) ** 2
@@ -69,6 +74,11 @@ def fit_rho(probits, weights):
 
 
 def _combine_matrix(matrix, weights, selection=None):
+    """Combine p-values for all eligible organism subsets of size at least three.
+
+    Matrix rows are target clusters and columns are organisms. Selection may use
+    conserved interactions; fit correlation on complete rows for each subset and
+    keep the minimum combined probability for each cluster and organism."""
     matrix = np.asarray(matrix, float)
     selected = matrix if selection is None else np.asarray(selection, float)
     variants = OrderedDict()
@@ -103,6 +113,10 @@ def _combine_matrix(matrix, weights, selection=None):
 
 
 def _rra(rank_lists):
+    """Aggregate ranked cluster lists using corrected beta order-statistic scores.
+
+    Missing entries receive rank one. The small-argument beta expansion preserves
+    the numerical convention of the captured RobustRankAggreg output."""
     universe = list(
         dict.fromkeys(index for sequence in rank_lists for index in sequence)
     )
@@ -141,6 +155,7 @@ def _rra(rank_lists):
 
 
 def _conservation_p(table, subtable, require_srna):
+    """Choose the first optimal/suboptimal probability satisfying consensus flags."""
     result = np.full(np.shape(table), np.nan)
     for i in range(len(table)):
         for j in range(len(table[i])):
@@ -160,6 +175,11 @@ def _conservation_p(table, subtable, require_srna):
 
 
 def join_copra2(ooi: str, directory: Path, *modes: str) -> str:
+    """Write balanced, organism-of-interest and consensus comparative rankings.
+
+    Read annotated interactions, phylogenetic weights and persisted conservation
+    matrices. Apply the configured root to weights, combine eligible subsets,
+    adjust p-values and preserve the report column/ordering conventions."""
     header, raw = read_table(
         directory / "CopraRNA2_prep_anno_addhomologs_padj_amountsamp.csv"
     )
@@ -172,12 +192,9 @@ def join_copra2(ooi: str, directory: Path, *modes: str) -> str:
         for j, cell in enumerate(row[2:end]):
             if cell:
                 matrix[i, j] = float(cell.split("|")[2])
-    root = float(
-        (directory / "CopraRNA_option_file.txt")
-        .read_text()
-        .splitlines()[13]
-        .split(":")[1]
-    )
+    from .runtime import options
+
+    root = float(options(directory)["root"])
     _, weight_rows = read_table(directory / "zscore.weight", sep=";")
     # Weight files have no header.
     weight_rows = [
@@ -270,157 +287,13 @@ def join_copra2(ooi: str, directory: Path, *modes: str) -> str:
     return ""
 
 
-class RRandom:
-    """Mersenne Twister initialization and inversion-normal sampling used by R."""
+def combine_clusters(organism_count: int, directory: Path) -> str:
+    """Build the 16S tree, SVG and weights, then prepare comparative cluster rows.
 
-    def __init__(self, seed=None):
-        if seed is None:
-            import secrets
-
-            seed = secrets.randbits(32)
-        seed = int(seed) & 0xFFFFFFFF
-        for _ in range(50):
-            seed = (69069 * seed + 1) & 0xFFFFFFFF
-        state = []
-        for _ in range(625):
-            seed = (69069 * seed + 1) & 0xFFFFFFFF
-            state.append(seed)
-        self.random = np.random.RandomState()
-        self.random.set_state(
-            ("MT19937", np.array(state[1:], dtype=np.uint32), 624, 0, 0.0)
-        )
-
-    def uniform(self):
-        value = int(self.random.randint(0, 2**32, dtype=np.uint32)) / 2**32
-        return max(0.5 / 2**32, min(1 - 0.5 / 2**32, value))
-
-    def normal(self):
-        value = (math.floor(134217728 * self.uniform()) + self.uniform()) / 134217728
-        return -float(normal_probit(value))
-
-
-def _histogram_error(values):
-    values = np.asarray(values, float)
-    lo, hi = float(np.min(values)), float(np.max(values))
-    cell = (hi - lo) / 100
-    if not cell:
-        return math.inf
-    base = 10 ** math.floor(math.log10(cell))
-    unit = base
-    if 2 * base - cell < 1.5 * (cell - base):
-        unit = 2 * base
-    if 5 * base - cell < 2.75 * (cell - unit):
-        unit = 5 * base
-    if 10 * base - cell < 1.5 * (cell - unit):
-        unit = 10 * base
-    breaks = np.arange(math.floor(lo / unit), math.ceil(hi / unit) + 1) * unit
-    fuzz = 1e-7 * float(np.median(np.diff(breaks)))
-    fuzzy = breaks + fuzz
-    fuzzy[0] -= 2 * fuzz
-    bins = np.searchsorted(fuzzy, values, side="left") - 1
-    _counts = np.bincount(np.clip(bins, 0, len(breaks) - 2), minlength=len(breaks) - 1)
-    # Legacy hist objects have density, not intensities. Accessing the absent
-    # intensities member yields NULL, and sum((1-NULL)^2) is zero.
-    from .compatibility import legacy_enabled
-
-    if legacy_enabled():
-        return 0.0
-    density = _counts / (len(values) * np.diff(breaks))
-    return r_sum((1 - density) ** 2)
-
-
-def join_copra1(path: Path, directory: Path, seed=None) -> str:
-    _, rows = read_table(path, sep=";")
-    options = (directory / "CopraRNA_option_file.txt").read_text().splitlines()
-    root = float(options[13].split(":")[1])
-    orgs = sorted(
-        [
-            line.split(";")[0]
-            for line in (directory / "zscore.weight").read_text().splitlines()
-        ]
-    )
-    wmap = dict(
-        line.split(";")
-        for line in (directory / "zscore.weight").read_text().splitlines()
-    )
-    weights = np.array([float(wmap[name]) ** (1 / root) for name in orgs])
-    groups = OrderedDict()
-    for row in rows:
-        groups.setdefault(row[-1], []).append(row)
-    full = []
-    for group in groups.values():
-        if len(group) == len(orgs):
-            group = sorted(group, key=lambda row: row[1])
-            full.append([normal_probit(float(row[35])) for row in group])
-    full = np.asarray(full)
-    full = full[np.isfinite(full.sum(axis=1))]
-    means = full.mean(axis=0)
-    covariance = np.cov(full, rowvar=False)
-    random = RRandom(seed)
-
-    def search(interval):
-        best_error = 1e9
-        best_rho = float(interval[0])
-        best_lines = []
-        for rho in interval:
-            values = []
-            lines = []
-            for group in groups.values():
-                group = sorted(group, key=lambda row: row[1])
-                present = [orgs.index(row[1].replace("ncrna_", "")) for row in group]
-                probabilities = np.array([float(row[35]) for row in group])
-                probabilities[probabilities == 1] = 0.9999999999999999
-                p = np.full(len(orgs), np.nan)
-                p[present] = normal_probit(probabilities)
-                missing = [j for j in range(len(orgs)) if j not in present]
-                if missing:
-                    c = covariance[np.ix_(missing, present)] @ np.linalg.inv(
-                        covariance[np.ix_(present, present)]
-                    )
-                    conditional_mean = means[missing] + c @ (
-                        p[present] - means[present]
-                    )
-                    conditional_cov = (
-                        covariance[np.ix_(missing, missing)]
-                        - c @ covariance[np.ix_(present, missing)]
-                    )
-                    for k, j in enumerate(missing):
-                        p[j] = (
-                            conditional_mean[k]
-                            + math.sqrt(conditional_cov[k, k]) * random.normal()
-                        )
-                with np.errstate(all="ignore"):
-                    value = float(
-                        normal_upper(
-                            r_sum(weights * p)
-                            / np.sqrt(
-                                (1 - rho) * r_sum(weights**2)
-                                + rho * r_sum(weights) ** 2
-                            )
-                        )
-                    )
-                if math.isnan(value):
-                    value = 0.0
-                values.append(value)
-                lines.append(
-                    r_number(value) + ";" + ";".join(row[0] for row in group) + ";\n"
-                )
-            error = _histogram_error(values)
-            if error < best_error:
-                best_error, best_rho, best_lines = error, float(rho), lines
-        return best_rho, best_lines
-
-    rho, _ = search(np.arange(11) / 10)
-    if rho == 0:
-        rho = 0.1
-    _, lines = search(np.arange(21) / 100 + rho - 0.1)
-    (directory / "CopraRNA1_with_pvsample.csv").write_text("".join(lines))
-    return ""
-
-
-def combine_clusters(organism_count: int, directory: Path, seed=None) -> str:
-    from .runtime import command, options
-    from .phylogeny import compute_weights
+    Temporarily shorten long accessions for PHYLIP's name limit and restore them
+    in both tree/report outputs before calculating organism weights."""
+    from .runtime import command
+    from .phylogeny import compute_weights, render_tree
     from .statistics import prepare_copra2
     from .intarna import numeric_sort
 
@@ -456,17 +329,14 @@ def combine_clusters(organism_count: int, directory: Path, seed=None) -> str:
             text = text.replace(short, identifier)
         (directory / dest).write_text(text)
         (directory / source).unlink()
+    render_tree(
+        directory / "compatible.treefile", directory / "compatible.treefile.svg"
+    )
     (directory / "zscore.weight").write_text(
         compute_weights(
             directory / "compatible.treefile", directory / "compatible.fneighbor"
         )
     )
-    if int(options(directory)["CopraRNA1"]):
-        join_copra1(directory / "opt_tags.clustered_rcsize", directory, seed)
-        path = directory / "CopraRNA1_with_pvsample.csv"
-        (directory / "CopraRNA1_with_pvsample_sorted.csv").write_text(
-            "".join(numeric_sort(path.read_text().splitlines(keepends=True)))
-        )
     prepare_copra2(directory / "opt_tags.clustered", directory)
     path = directory / "CopraRNA2_prep.csv"
     (directory / "CopraRNA2_prep_sorted.csv").write_text(

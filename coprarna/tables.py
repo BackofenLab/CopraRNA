@@ -4,6 +4,7 @@ from collections import defaultdict
 import math
 from pathlib import Path
 import re
+from .io import paths, read_text, write_text
 
 INTARNA_HEADER = "id1;id2;seq1;seq2;subseq1;subseq2;subseqDP;subseqDB;start1;end1;start2;end2;hybridDP;hybridDB;E;ED1;ED2;Pu1;Pu2;E_init;E_loops;E_dangleL;E_dangleR;E_endL;E_endR;seedStart1;seedEnd1;seedStart2;seedEnd2;seedE;seedED1;seedED2;seedPu1;seedPu2;E_norm"
 
@@ -17,7 +18,7 @@ def perl_split(pattern: str, value: str) -> list[str]:
 
 def blast_to_homology(path: Path) -> str:
     rows = []
-    for line in path.read_text().splitlines():
+    for line in read_text(path).splitlines():
         if line.startswith("#") or not line.strip():
             continue
         row = line.split()
@@ -47,9 +48,9 @@ def blast_to_homology(path: Path) -> str:
 
 
 def disentangle(directory: Path) -> str:
-    for path in sorted(directory.glob("*.fa.intarna.sorted.csv")):
+    for path in paths(directory, "*.fa.intarna.sorted.csv"):
         optimal, suboptimal = {}, {}
-        for line in path.read_text().splitlines()[1:]:
+        for line in read_text(path).splitlines()[1:]:
             tag = line.split(";")[0]
             if tag in optimal:
                 from .compatibility import legacy_enabled
@@ -61,17 +62,22 @@ def disentangle(directory: Path) -> str:
             else:
                 optimal[tag] = line
         for suffix, rows in [("opt", optimal), ("subopt", suboptimal)]:
-            name = path.name.split(".")[0] + f"_{suffix}.intarna.csv"
-            (directory / name).write_text(
-                INTARNA_HEADER + "\n" + "".join(line + "\n" for line in rows.values())
+            name = (
+                path.name.split(".")[0]
+                + f"_{suffix}.intarna.csv"
+                + (".gz" if path.suffix == ".gz" else "")
+            )
+            write_text(
+                directory / name,
+                INTARNA_HEADER + "\n" + "".join(line + "\n" for line in rows.values()),
             )
     return ""
 
 
 def cluster_predictions(directory: Path) -> str:
     lookup = {}
-    for path in sorted(directory.glob("*_opt.intarna.csv")):
-        for line in path.read_text().splitlines()[1:]:
+    for path in paths(directory, "*_opt.intarna.csv"):
+        for line in read_text(path).splitlines()[1:]:
             line = line.lower()
             lookup[line.split(";")[0]] = line
     output = [INTARNA_HEADER[1:] + ";p-value;clusternumber\n"]
@@ -92,11 +98,11 @@ def cluster_predictions(directory: Path) -> str:
     return "".join(output)
 
 
-def add_sampled_count(path: Path, cop2: bool) -> str:
-    lines = path.read_text().splitlines()
+def add_sampled_count(path: Path) -> str:
+    lines = read_text(path).splitlines()
     output = [lines[0] + ",Amount sampled\n"]
     for line in lines[1:]:
-        count = 0 if cop2 else line.split(",")[:-2].count("")
+        count = 0
         output.append(f"{line},{count}\n")
     return "".join(output)
 
@@ -115,7 +121,7 @@ def additional_homologs(path: Path, clusters: Path) -> str:
                     homologs.append(tag)
             for tag in homologs:
                 lookup[tag].extend(homologs)
-    lines = path.read_text().splitlines()
+    lines = read_text(path).splitlines()
     output = [lines[0] + ",Additional homologs\n"]
     for line in lines[1:]:
         fields = line.split(",")
@@ -132,7 +138,7 @@ def additional_homologs(path: Path, clusters: Path) -> str:
 
 
 def enrichment_report(path: Path) -> str:
-    lines = path.read_text().splitlines()
+    lines = read_text(path).splitlines()
     header = "Category\tTerm\tCount\t%\tPvalue\tGenes\tList Total\tPop Hits\tPop Total\tFold Enrichment\tBonferroni\tBenjamini\tFDR\n"
     fields = [
         "categoryName",

@@ -4,13 +4,13 @@ GEV fitting and correlated p-value joining have separate migration requirements;
 no substitute numerical algorithm is used here.
 """
 
-from collections import Counter
 from decimal import Decimal
 import math
 from pathlib import Path
 
 
 def bh_adjust(pvalues: list[float]) -> list[float]:
+    """Apply Benjamini-Hochberg correction to finite positions, preserving missing NA."""
     valid = [i for i, value in enumerate(pvalues) if not math.isnan(value)]
     ordered = sorted(valid, key=lambda i: pvalues[i], reverse=True)
     adjusted = [math.nan] * len(pvalues)
@@ -22,6 +22,7 @@ def bh_adjust(pvalues: list[float]) -> list[float]:
 
 
 def r_number(value: float) -> str:
+    """Format a numeric scalar with R's retained precision and NA/Inf conventions."""
     if math.isnan(value):
         return "NA"
     if math.isinf(value):
@@ -37,6 +38,7 @@ def r_number(value: float) -> str:
 
 
 def adjust_pvalues(path: Path, directory: Path) -> str:
+    """Read the headered p-value table and write the BH-adjusted padj.csv column."""
     rows = [line.split() for line in path.read_text().splitlines()[1:] if line.strip()]
     width = len(rows[0]) if rows else 0
     values = [
@@ -53,6 +55,7 @@ def adjust_pvalues(path: Path, directory: Path) -> str:
 
 def _r_normalize_numeric_columns(rows: list[list[str]]) -> list[list[str]]:
     # read.table type-converts each column before write.table prints it.
+    """Reproduce read.table type conversion followed by write.table formatting."""
     if not rows:
         return rows
     result = [list(row) for row in rows]
@@ -70,6 +73,7 @@ def _r_normalize_numeric_columns(rows: list[list[str]]) -> list[list[str]]:
 
 
 def prepare_copra2(path: Path, directory: Path) -> str:
+    """Write ordered homolog tag sets for the comparative cluster-joining stage."""
     rows = _r_normalize_numeric_columns(
         [line.split(";") for line in path.read_text().splitlines()[1:]]
     )
@@ -81,33 +85,4 @@ def prepare_copra2(path: Path, directory: Path) -> str:
         )
         output.append("0;" + ";".join(row[0] for row in members) + ";\n")
     (directory / "CopraRNA2_prep.csv").write_text("".join(output))
-    return ""
-
-
-def filter_clusters(directory: Path) -> str:
-    options = (directory / "CopraRNA_option_file.txt").read_text().splitlines()
-    relative_size = float(options[4].split(":")[1])
-    organism_count = sum(
-        ">" in line.split()[0]
-        for line in (directory / "16s_sequences.fa").read_text().splitlines()
-        if line.split()
-    )
-    lines = (directory / "opt_tags.clustered").read_text().splitlines()
-    header = lines[0].split(";")
-    # read.table applies make.names; the wrong legacy rename is intentional.
-    header = [name.replace("-", ".") for name in header]
-    from .compatibility import legacy_enabled
-
-    header[34 if legacy_enabled() else 35] = "p-value"
-    rows = _r_normalize_numeric_columns([line.split(";") for line in lines[1:]])
-    counts = Counter(int(row[-1]) for row in rows)
-    last_cluster = int(rows[-1][-1])
-    keep = {
-        cluster
-        for cluster, count in counts.items()
-        if 1 <= cluster <= last_cluster and count / organism_count >= relative_size
-    }
-    output = [";".join(header) + "\n"]
-    output += [";".join(row) + "\n" for row in rows if int(row[-1]) in keep]
-    (directory / "opt_tags.clustered_rcsize").write_text("".join(output))
     return ""

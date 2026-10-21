@@ -1,24 +1,27 @@
 """R table serialization and persisted matrix conventions used by CopraRNA."""
 
-from pathlib import Path
 import csv
 import math
 import re
 import numpy as np
 from .statistics import r_number
+from .io import open_text, write_text
 
 
 def read_table(path, sep=","):
-    with Path(path).open(newline="") as stream:
+    """Read a header and data rows from a plain/gzip delimited table."""
+    with open_text(path) as stream:
         rows = list(csv.reader(stream, delimiter=sep))
     return rows[0], rows[1:]
 
 
 def make_names(names):
+    """Normalize report field punctuation as required by retained R column access."""
     return [re.sub(r"[^\w.]", ".", name) for name in names]
 
 
 def scalar(value, quote=False):
+    """Serialize one R-compatible table value, including booleans and missing data."""
     if value is None or isinstance(value, (float, np.floating)) and math.isnan(value):
         return "NA"
     if isinstance(value, (bool, np.bool_)):
@@ -32,6 +35,7 @@ def scalar(value, quote=False):
 
 
 def write_table(path, header, rows, sep=",", quote=False, row_names=False):
+    """Write retained R table formatting, with optional row names and gzip storage."""
     lines = []
     if header is not None:
         lines.append(sep.join(scalar(v, quote) for v in header))
@@ -42,10 +46,11 @@ def write_table(path, header, rows, sep=",", quote=False, row_names=False):
             else []
         ) + list(row)
         lines.append(sep.join(scalar(v, quote) for v in cells))
-    Path(path).write_text("\n".join(lines) + "\n")
+    write_text(path, "\n".join(lines) + "\n")
 
 
 def numeric_columns(rows):
+    """Convert wholly numeric table columns, representing empty/NA cells as NaN."""
     result = [list(row) for row in rows]
     if not rows:
         return result
@@ -62,6 +67,8 @@ def numeric_columns(rows):
 
 
 class RMatrix:
+    """Carry matrix values and dimnames for R-compatible column-major serialization."""
+
     def __init__(self, values, columns=None, rows=None):
         self.values = np.asarray(values, dtype=object)
         self.columns = columns
@@ -69,12 +76,15 @@ class RMatrix:
 
 
 class RNamedList:
+    """Carry list members and names for R-compatible serialization."""
+
     def __init__(self, values, names):
         self.values = values
         self.names = names
 
 
 def save_rdata(path, name, values, *, names=None, columns=None):
+    """Persist named lists/matrices with R dimensions, names and column-major order."""
     import rdata
 
     def constructor(matrix, converter):
@@ -107,6 +117,7 @@ def save_rdata(path, name, values, *, names=None, columns=None):
 
 
 def load_rdata(path, name):
+    """Load the requested R object while restoring character-matrix dimensions."""
     import rdata
     from rdata.parser import RObjectType
 

@@ -1,66 +1,161 @@
-"""Native orchestration of whole-genome IntaRNA predictions and phylogeny input."""
+"""IntaRNAsTar orchestration, compressed interactions and artifact filtering."""
 
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
+import csv
+import json
+import hashlib
 import re
+import tempfile
 from Bio import SeqIO
-from . import genome, tables, phylogeny, energy, statistics
+from . import genome, tables, phylogeny, energy, parameters
+from .io import accession, open_text, read_text, write_text
 from .runtime import options, command
 
 
 def numeric_sort(lines, index=0, separator=";"):
+    """Reproduce numeric table sorting with deterministic text ties and header first."""
+
     def key(line):
         fields = line.rstrip("\n").split(separator)
         try:
-            number = float(fields[index])
-            return (1, number, line)
+            return (1, float(fields[index]), line)
         except (ValueError, IndexError):
             return (0, 0, line)
 
     return sorted(lines, key=key)
 
 
+def perfect_helix(row, windows=None, fraction=0.9):
+    """A gap-free helix spanning >=90% of either RNA's effective window."""
+    structure = row["hybridDP"].split("&")
+    if len(structure) != 2:
+        return False
+    left, right = structure
+    if not left or set(left) != {"("} or set(right) != {")"} or len(left) != len(right):
+        return False
+    windows = windows or {}
+    for key, sequence in [("tAccW", "seq1"), ("qAccW", "seq2")]:
+        length = len(row[sequence])
+        window = int(windows.get(key, 0))
+        effective = min(length, window) if window > 0 else length
+        if effective and len(left) >= fraction * effective:
+            return True
+    return False
+
+
+def filter_perfect_helices(path, windows=None):
+    """Atomically filter plain/gzip native CSV and return an auditable removal list.
+
+    Read one interaction at a time. The filtered table replaces its source before
+    optimal/suboptimal splitting or GEV fitting, so excluded energies cannot affect
+    the estimated null distribution. Keep identifiers and coordinates in the audit."""
+    path = Path(path)
+    removed = []
+    kept = 0
+    with tempfile.NamedTemporaryFile(
+        prefix=".filtered-", suffix=path.suffix, dir=path.parent, delete=False
+    ) as stream:
+        temporary = Path(stream.name)
+    try:
+        with open_text(path) as source, open_text(temporary, "wt") as target:
+            reader = csv.DictReader(source, delimiter=";")
+            writer = csv.DictWriter(
+                target, fieldnames=reader.fieldnames, delimiter=";", lineterminator="\n"
+            )
+            writer.writeheader()
+            for row in reader:
+                if perfect_helix(row, windows):
+                    removed.append(
+                        {
+                            key: row[key]
+                            for key in (
+                                "id1",
+                                "id2",
+                                "start1",
+                                "end1",
+                                "start2",
+                                "end2",
+                            )
+                        }
+                    )
+                else:
+                    writer.writerow(row)
+                    kept += 1
+        temporary.replace(path)
+    finally:
+        temporary.unlink(missing_ok=True)
+    return {
+        "removed_perfect_helices": len(removed),
+        "retained_interactions": kept,
+        "removed_interactions": removed,
+    }
+
+
+def prediction_signature(directory, target, query):
+    """Hash scientific inputs and settings to prevent stale prediction reuse.
+
+    Include tool version, personality, filter policy and file contents. Exclude
+    absolute paths so equivalent jobs and inline/file settings have the same key."""
+    digest = hashlib.sha256(b"CopraRNA2:perfect-helix-filter=.9:v1")
+    digest.update(options(directory).get("IntaRNA version", "").encode())
+    digest.update(parameters.PERSONALITY.encode())
+    files = [Path(directory) / target, Path(directory) / query]
+    params = parameters.arguments(directory)
+    if params:
+        files.append(Path(params[1]))
+    for path in files:
+        digest.update(b"\0")
+        with path.open("rb") as stream:
+            for block in iter(lambda: stream.read(1024 * 1024), b""):
+                digest.update(block)
+    return digest.hexdigest()
+
+
 def prepare_predictions(
     srna: Path, up: int, down: int, region: str, groups: list[str], directory: Path
 ) -> str:
+    """Generate target/query FASTAs, predict and cluster compressed interactions.
+
+    Groups contain comma-separated replicon paths, with the primary chromosome
+    first. Each organism runs independently using the same parameter file. Only
+    matching cached predictions are reused; filtering precedes all statistical work."""
     opt = options(directory)
     for group in groups:
-        main = group.split(",")[0][:-3]
-        output = f"{main}_upfromstartpos_{up}_down_{down}.fa"
-        for i, filename in enumerate(group.split(","), 1):
-            (directory / f"{output}{i}").write_text(
-                genome.parse_regions(directory / filename, up, down, region)
-            )
-    filenames = sorted(path.name for path in directory.iterdir())
-    for group in groups:
-        main = group.split(",")[0][:-3]
-        output = f"{main}_upfromstartpos_{up}_down_{down}.fa"
-        with (directory / output).open("a") as stream:
-            for name in filenames:
-                if re.search(re.escape(main) + r"\S+\.fa\d+", name):
-                    stream.write((directory / name).read_text())
+        main = accession(group.split(",")[0])
+        target = directory / f"{main}_upfromstartpos_{up}_down_{down}.fa"
+        with target.open("w") as stream:
+            for filename in group.split(","):
+                stream.write(
+                    genome.parse_regions(directory / filename, up, down, region)
+                )
     queries = {}
     for record in SeqIO.parse(srna, "fasta"):
-        name = record.id
-        queries[name.removeprefix("ncRNA_")] = name + ".fa"
-        (directory / (name + ".fa")).write_text(
-            f">{name}\n" + re.sub(r"\s|-", "", str(record.seq)).lower()
+        queries[record.id.removeprefix("ncRNA_")] = record.id + ".fa"
+        (directory / (record.id + ".fa")).write_text(
+            f">{record.id}\n" + re.sub(r"\s|-", "", str(record.seq)).lower()
         )
+    windows = parameters.values(directory)
 
     def predict(group):
-        main = group.split(",")[0][:-3]
+        main = accession(group.split(",")[0])
         target = f"{main}_upfromstartpos_{up}_down_{down}.fa"
-        output = target + ".intarna.csv"
-        if not (directory / output).exists():
+        output = target + ".intarna.csv.gz"
+        signature = prediction_signature(directory, target, queries[main])
+        report_path = directory / (target + ".filter.json")
+        try:
+            cached = json.loads(report_path.read_text())
+        except (OSError, ValueError):
+            cached = {}
+        if (
+            not (directory / output).exists()
+            or cached.get("native_signature") != signature
+        ):
             command(
                 [
-                    "IntaRNA",
-                    "--tAccW",
-                    opt["win size"],
-                    "--tAccL",
-                    opt["max bp dist"],
-                    "--outNumber",
-                    "2",
+                    parameters.PERSONALITY,
+                    *parameters.arguments(directory),
+                    *([] if "outNumber" in windows else ["--outNumber", "2"]),
                     "--target",
                     target,
                     "--query",
@@ -73,18 +168,30 @@ def prepare_predictions(
                 ],
                 directory,
             )
+            if not (directory / output).is_file():
+                raise RuntimeError(f"IntaRNAsTar did not produce {output}")
+            report = filter_perfect_helices(directory / output, windows)
+            report.update(
+                native_signature=signature,
+                personality=parameters.PERSONALITY,
+                perfect_helix_fraction=0.9,
+            )
+            report_path.write_text(json.dumps(report, indent=2) + "\n")
+        sorted_path = directory / (target + ".intarna.sorted.csv.gz")
+        write_text(
+            sorted_path,
+            "".join(
+                numeric_sort(
+                    read_text(directory / output).splitlines(keepends=True), 14
+                )
+            ),
+        )
 
     with ThreadPoolExecutor(max_workers=max(1, int(opt["core count"]))) as pool:
         list(pool.map(predict, groups))
-    for path in sorted(directory.glob("*intarna.csv")):
-        (directory / (path.name[:-3] + "sorted.csv")).write_text(
-            "".join(numeric_sort(path.read_text().splitlines(keepends=True), 14))
-        )
     tables.disentangle(directory)
     energy.add_energy_pvalues(directory)
     (directory / "opt_tags.clustered").write_text(tables.cluster_predictions(directory))
-    if int(opt["CopraRNA1"]):
-        statistics.filter_clusters(directory)
     command(
         ["mafft", "--localpair", "--quiet", "16s_sequences.fa"],
         directory,

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Explicitly refresh the golden files after reviewing a legacy fixture change."""
+
 import json
 from pathlib import Path
 import sys

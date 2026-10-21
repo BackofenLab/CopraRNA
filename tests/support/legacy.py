@@ -1,4 +1,5 @@
 """Execute original sources as a regression oracle, never production code."""
+
 from __future__ import annotations
 
 import json
@@ -12,8 +13,10 @@ FIXTURES = ROOT / "tests" / "fixtures"
 
 
 def interpreter(language: str) -> str | None:
-    variable, executable = {"perl": ("COPRARNA_LEGACY_PERL", "perl"),
-                            "r": ("COPRARNA_LEGACY_RSCRIPT", "Rscript")}[language]
+    variable, executable = {
+        "perl": ("COPRARNA_LEGACY_PERL", "perl"),
+        "r": ("COPRARNA_LEGACY_RSCRIPT", "Rscript"),
+    }[language]
     return os.environ.get(variable) or shutil.which(executable)
 
 
@@ -26,8 +29,13 @@ def capture(case: Path, directory: Path) -> dict[str, bytes]:
     env = dict(os.environ, LC_ALL="C", TZ="UTC")
     # This fixes traversal variability only; Perl does not guarantee insertion order.
     env.update(PERL_HASH_SEED="0", PERL_PERTURB_KEYS="0")
-    result = subprocess.run([executable, str(ROOT / spec["script"]), *spec["args"]],
-                            cwd=directory, env=env, capture_output=True, timeout=60)
+    result = subprocess.run(
+        [executable, str(ROOT / spec["script"]), *spec["args"]],
+        cwd=directory,
+        env=env,
+        capture_output=True,
+        timeout=60,
+    )
     if result.returncode:
         raise RuntimeError(result.stderr.decode(errors="replace"))
     outputs = {"stdout": result.stdout}

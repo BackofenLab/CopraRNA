@@ -91,3 +91,61 @@ one affected genome afterward).
 Not yet ported: GEV fitting, correlated p-value joining, consensus/conservation,
 plotting, full pipeline orchestration, webserver rendering and maintenance tools.
 No complete end-to-end rewrite or whole-workflow equivalence is claimed.
+
+### Export helpers, CLI and packaging
+
+Added byte-validated enrichment JSON and specific-target exports, the unchanged
+archive README resource, and compressed copies of the unchanged organism tables.
+`helpers.py` is the production dispatch shared by the CLI and parity tests.
+`cli.py` provides single-helper execution and independent bounded-concurrency
+batch jobs; `pyproject.toml` packages only the Python implementation and its data.
+`migration.json` and per-script `.md` files distinguish actual ports from intended
+future targets. The CLI does not expose an unimplemented prediction command.
+
+The first complete environment solve failed: historical ViennaRNA 2.4.14 builds
+require Python 2, and MAFFT 7.310 conflicts with strict modern channel priority.
+`environment.yml` therefore specifies only the actual helper dependencies;
+whole-workflow historical tools are recorded separately in the unvalidated
+`environment-legacy.yml`. A future complete Bioconda recipe remains outstanding.
+
+Additional legacy defects retained/documented:
+- Heatmap JSON is assembled without escaping feature/source strings.
+- `get_CDS_from_gbk.pl` searches the mapping using the input filename minus three
+  characters, so passing a path can prevent organism-code lookup.
+- The region parser complements only A/C/G/T in flanking regions, not all IUPAC.
+- `disentangle_sorted_intarna_CSV.pl` keeps the last suboptimal row if more than
+  two interactions exist for a target.
+
+Full rewrite completion and the separate bug-fix PR are still pending. Do not use
+closing issue keywords in a draft PR for this incremental implementation.
+
+Final validation progress:
+- Full final real-genome rerun: 17/17 genomes, all three region modes passed.
+- Small-fixture/oracle/CLI suite: 78 tests passed; 17 real-genome tests are
+  intentionally opt-in in the default run (verified separately above).
+- Additional R-derived numeric fixtures verify scientific notation and numeric
+  type conversion, preventing text-format drift in the preprocessing ports.
+- The revised helper Conda specification solved successfully; a fresh pinned
+  environment and installed-wheel smoke checks are being validated.
+
+Pinned-environment validation found a BioPython-version compatibility difference:
+1.84 retains internal tabs in parsed FASTA sequences, while 1.86 removes them.
+`fasta.format_fasta` now removes sequence whitespace explicitly, as BioPerl does.
+This is a port correction, not a legacy behavioral change. All 45 Python
+parity/CLI/inventory tests pass with the pinned Python 3.11 / BioPython 1.84.
+
+Distribution checks completed:
+- Fresh `environment.yml` installation succeeded on linux-64.
+- The installed wheel was exercised outside the repository: all 33 migrated
+  fixture cases passed through the console entry point with exact-output checks.
+- The wheel contains no legacy scripts; the source archive retains every
+  original tracked file with its original checksum.
+- `tests/fixtures/provenance.json` records oracle and Python dependency versions.
+- Ruff and `git diff --check` pass. CI covers Python 3.11–3.13, source builds and
+  an installed-wheel smoke test. Historical whole-workflow environment, full
+  numerical parity, the prediction CLI and the bug-fix PR remain pending.
+
+Final complete validation: **97 tests passed** in the fresh pinned Python 3.11 /
+Biopython 1.84 environment with both legacy oracle runtimes and
+`COPRARNA_REFERENCE_TESTS=1` enabled. This includes all 17 bundled real genomes,
+each checked in 5utr, 3utr and cds modes (51 exact-output comparisons).

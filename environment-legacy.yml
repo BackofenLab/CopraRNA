@@ -1,25 +1,18 @@
-# Oracle environment only. Never a dependency of the Python implementation.
+# CopraRNA2 helper-oracle interpreters only; never production dependencies.
+# Native workflow validation uses environment.yml (IntaRNA >=3).
 name: coprarna-legacy-oracle
 channels:
   - conda-forge
   - bioconda
   - nodefaults
 dependencies:
-  - perl=5.26.2
+  - perl=5.32.1
   - perl-bioperl=1.7.8
   - perl-bio-eutilities
   - perl-getopt-long
   - perl-list-moreutils
   - perl-parallel-forkmanager
-  - r-base=3.6.3
-  - r-pheatmap=1.0.12
-  - r-robustrankaggreg=1.1
-  - r-seqinr
-  - blast-legacy=2.2.26
-  - domclust=1.2.8
-  - emboss=6.6.0
-  - embassy-phylip=3.69.650
-  - intarna=2.2.0
-  - mafft=7.310
-  - clustalo=1.2.3
-  - phantomjs=2.1.1
+  - r-base=4.4.3
+# Install the captured helper oracle's pure-R dependency after activation:
+# Rscript -e 'install.packages("https://cran.r-project.org/src/contrib/Archive/RobustRankAggreg/RobustRankAggreg_1.1.tar.gz", repos=NULL, type="source")'
+# Conda's old 1.1 builds pin incompatible R ABIs; the archived source works on R 4.4.3.

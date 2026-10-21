@@ -1,0 +1,8 @@
+{
+  "script": "coprarna_aux/transform_distmat.pl",
+  "language": "perl",
+  "args": [
+    "distmat.out"
+  ],
+  "outputs": []
+}

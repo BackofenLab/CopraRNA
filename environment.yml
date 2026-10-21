@@ -1,0 +1,30 @@
+# Python controller + validated native scientific tools (linux-64).
+name: coprarna-python3
+channels:
+  - conda-forge
+  - bioconda
+  - nodefaults
+dependencies:
+  - python=3.12
+  - pip=24.3
+  - setuptools=75.6
+  - biopython=1.86
+  - numpy=2.4.3
+  - scipy=1.17.1
+  - pandas=2.3.3
+  - matplotlib-base=3.10.8
+  - intarna=3.4.1
+  - viennarna=2.7.2
+  - blast-legacy=2.2.26
+  - domclust=1.2.8
+  - emboss=6.6.0
+  - embassy-phylip=3.69.660
+  - mafft=7.526
+  - clustalo=1.2.4
+  - ghostscript=10.06.0
+  - pytest=8.3.4
+  - python-build=1.2.2
+  - pip:
+      - rdata==1.1.0
+      - suds-community==1.2.0
+      - playwright==1.64.0

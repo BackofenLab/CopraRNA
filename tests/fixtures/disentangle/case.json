@@ -1,0 +1,13 @@
+{
+  "script": "coprarna_aux/disentangle_sorted_intarna_CSV.pl",
+  "language": "perl",
+  "args": [],
+  "outputs": [
+    "NC_000001_opt.intarna.csv",
+    "NC_000001_subopt.intarna.csv"
+  ],
+  "unordered": [
+    "NC_000001_opt.intarna.csv",
+    "NC_000001_subopt.intarna.csv"
+  ]
+}

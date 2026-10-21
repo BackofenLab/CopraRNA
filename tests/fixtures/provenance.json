@@ -1,0 +1,28 @@
+{
+  "upstream_commit": "ee0c97166b3c0cca4570261ce319ec562c620efb",
+  "capture_environment": {
+    "LC_ALL": "C",
+    "TZ": "UTC",
+    "PERL_HASH_SEED": "0",
+    "PERL_PERTURB_KEYS": "0"
+  },
+  "perl": {
+    "version": "5.26.2",
+    "BioPerl": "1.7.2",
+    "List::MoreUtils": "0.428",
+    "Parallel::ForkManager": "2.02"
+  },
+  "R": "4.4.3",
+  "historical_README_R_version": "3.2.2",
+  "historical_numerical_parity_certified": false,
+  "python_validated": [
+    {
+      "version": "3.11",
+      "Biopython": "1.84"
+    },
+    {
+      "version": "3.12",
+      "Biopython": "1.86"
+    }
+  ]
+}

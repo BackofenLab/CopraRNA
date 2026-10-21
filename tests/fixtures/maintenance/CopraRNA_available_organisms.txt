@@ -1,0 +1,11 @@
+## last updated: Thu Jan  2 03:04:05 UTC 2020
+## please contact us if you know your 
+## organism is part of the RefSeq database 
+## and has an ID in the RefSeq format but 
+## is not present in this list, or is
+## missing IDs 
+
+RefSeq-IDs	organism-name
+
+NC_000001 NC_000002	Alpha_bacteria_a
+NZ_CP000003	Beta_bacteria_b

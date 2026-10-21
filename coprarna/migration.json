@@ -1,0 +1,382 @@
+[
+  {
+    "legacy": "CopraRNA2.pl",
+    "status": "ported",
+    "target": "coprarna.pipeline.run_prediction",
+    "command": "coprarna helper predict",
+    "fixtures": [
+      "tests/test_workflow.py::test_full_native_prediction_matches_legacy"
+    ]
+  },
+  {
+    "legacy": "coprarna_aux/DAVIDWebService_CopraRNA.py",
+    "status": "ported",
+    "target": "coprarna.david.coprarna_report",
+    "command": "coprarna helper david-copra",
+    "fixtures": [
+      "tests/test_adapters.py::test_david_requests_and_stdout_match_untouched_source"
+    ]
+  },
+  {
+    "legacy": "coprarna_aux/DAVIDWebService_IntaRNA_chartReport.py",
+    "status": "ported",
+    "target": "coprarna.david.intarna_report",
+    "command": "coprarna helper david-intarna",
+    "fixtures": [
+      "tests/test_adapters.py::test_david_requests_and_stdout_match_untouched_source"
+    ]
+  },
+  {
+    "legacy": "coprarna_aux/add_GI_genename_annotation_intarna.pl",
+    "status": "ported",
+    "target": "coprarna.annotation.annotate_intarna",
+    "command": "coprarna helper annotate-intarna",
+    "fixtures": [
+      "annotate-intarna"
+    ]
+  },
+  {
+    "legacy": "coprarna_aux/add_pval_to_csv_evdfit.R",
+    "status": "ported",
+    "target": "coprarna.energy.add_energy_pvalues",
+    "command": "coprarna helper fit-energy",
+    "fixtures": [
+      "fit-energy-pvalues"
+    ]
+  },
+  {
+    "legacy": "coprarna_aux/annotate_raw_output.pl",
+    "status": "ported",
+    "target": "coprarna.annotation.annotate_raw",
+    "command": "coprarna helper annotate-raw",
+    "fixtures": [
+      "annotate-raw"
+    ]
+  },
+  {
+    "legacy": "coprarna_aux/blast2homfile.pl",
+    "status": "ported",
+    "target": "coprarna.tables.blast_to_homology",
+    "command": "coprarna helper blast-homology",
+    "fixtures": [
+      "blast-homology"
+    ]
+  },
+  {
+    "legacy": "coprarna_aux/calc_padj.R",
+    "status": "ported",
+    "target": "coprarna.statistics.adjust_pvalues",
+    "command": "coprarna helper adjust-pvalues",
+    "fixtures": [
+      "adjust-pvalues",
+      "adjust-pvalues-precision"
+    ]
+  },
+  {
+    "legacy": "coprarna_aux/check_for_gene_CDS_features.pl",
+    "status": "ported",
+    "target": "coprarna.genome.check_gene_cds",
+    "command": "coprarna helper check-features",
+    "fixtures": [
+      "check-features-0-0",
+      "check-features-1-0",
+      "check-features-1-1"
+    ]
+  },
+  {
+    "legacy": "coprarna_aux/cluster_intarna_csv.pl",
+    "status": "ported",
+    "target": "coprarna.tables.cluster_predictions",
+    "command": "coprarna helper cluster-predictions",
+    "fixtures": [
+      "cluster-predictions"
+    ]
+  },
+  {
+    "legacy": "coprarna_aux/combine_clusters.pl",
+    "status": "ported",
+    "target": "coprarna.combination.combine_clusters",
+    "command": "coprarna helper combine-clusters",
+    "fixtures": [
+      "tests/test_workflow.py::test_full_native_prediction_matches_legacy"
+    ]
+  },
+  {
+    "legacy": "coprarna_aux/compute_weights.pl",
+    "status": "ported",
+    "target": "coprarna.phylogeny.compute_weights",
+    "command": "coprarna helper compute-weights",
+    "fixtures": [
+      "weights-branches",
+      "weights-zero"
+    ]
+  },
+  {
+    "legacy": "coprarna_aux/copraRNA2_position_script_for_evo_precalculated_alignments_w_ooi.R",
+    "status": "ported",
+    "target": "coprarna.conservation.compute_conservation",
+    "command": "coprarna helper conservation",
+    "fixtures": [
+      "tests/test_workflow.py::test_conservation_and_all_203_jalview_exports_match"
+    ]
+  },
+  {
+    "legacy": "coprarna_aux/disentangle_sorted_intarna_CSV.pl",
+    "status": "ported",
+    "target": "coprarna.tables.disentangle",
+    "command": "coprarna helper disentangle",
+    "fixtures": [
+      "disentangle"
+    ]
+  },
+  {
+    "legacy": "coprarna_aux/evo_heatmap.R",
+    "status": "ported",
+    "target": "coprarna.plots.plot_evolutionary_heatmap",
+    "command": "coprarna helper plot-evolution",
+    "fixtures": [
+      "tests/test_workflow.py::test_plot_geometry_and_heatmap_match_original_R"
+    ]
+  },
+  {
+    "legacy": "coprarna_aux/extract_functional_enriched.R",
+    "status": "ported",
+    "target": "coprarna.enrichment.extract_enriched_terms",
+    "command": "coprarna helper functional-enrichment",
+    "fixtures": [
+      "functional-enrichment"
+    ]
+  },
+  {
+    "legacy": "coprarna_aux/fasta2genefile.pl",
+    "status": "ported",
+    "target": "coprarna.fasta.fasta_to_genefile",
+    "command": "coprarna helper fasta-gene",
+    "fixtures": [
+      "fasta-gene"
+    ]
+  },
+  {
+    "legacy": "coprarna_aux/find_single_specific_targets_in_termCluster.pl",
+    "status": "ported",
+    "target": "coprarna.exports.specific_targets",
+    "command": "coprarna helper specific-targets",
+    "fixtures": [
+      "specific-targets"
+    ]
+  },
+  {
+    "legacy": "coprarna_aux/format_fasta.pl",
+    "status": "ported",
+    "target": "coprarna.fasta.format_fasta",
+    "command": "coprarna helper format-fasta",
+    "fixtures": [
+      "format-fasta"
+    ]
+  },
+  {
+    "legacy": "coprarna_aux/get_CDS_from_gbk.pl",
+    "status": "ported",
+    "target": "coprarna.genome.extract_proteins",
+    "command": "coprarna helper extract-proteins",
+    "fixtures": [
+      "extract-proteins"
+    ]
+  },
+  {
+    "legacy": "coprarna_aux/get_amount_sampled_values_and_add_to_table.pl",
+    "status": "ported",
+    "target": "coprarna.tables.add_sampled_count",
+    "command": "coprarna helper sampled-count",
+    "fixtures": [
+      "sampled-0",
+      "sampled-1"
+    ]
+  },
+  {
+    "legacy": "coprarna_aux/get_refseq_from_refid.pl",
+    "status": "ported",
+    "target": "coprarna.ncbi.download_genbank",
+    "command": "coprarna helper download-genbank",
+    "fixtures": [
+      "cached-genbank"
+    ]
+  },
+  {
+    "legacy": "coprarna_aux/homology_intaRNA.pl",
+    "status": "ported",
+    "target": "coprarna.homology.run_homology",
+    "command": "coprarna helper homology",
+    "fixtures": [
+      "tests/test_workflow.py::test_full_native_prediction_matches_legacy"
+    ]
+  },
+  {
+    "legacy": "coprarna_aux/join_pvals_coprarna1.R",
+    "status": "ported",
+    "target": "coprarna.combination.join_copra1",
+    "command": "coprarna helper join-copra1",
+    "fixtures": [
+      "join-copra1"
+    ]
+  },
+  {
+    "legacy": "coprarna_aux/join_pvals_coprarna2.R",
+    "status": "ported",
+    "target": "coprarna.combination.join_copra2",
+    "command": "coprarna helper join-copra2",
+    "fixtures": [
+      "join-copra2"
+    ]
+  },
+  {
+    "legacy": "coprarna_aux/make_enrichment_table_from_py_output.pl",
+    "status": "ported",
+    "target": "coprarna.tables.enrichment_report",
+    "command": "coprarna helper enrichment-report",
+    "fixtures": [
+      "enrichment-report"
+    ]
+  },
+  {
+    "legacy": "coprarna_aux/make_heatmap_json.pl",
+    "status": "ported",
+    "target": "coprarna.exports.heatmap_json",
+    "command": "coprarna helper heatmap-json",
+    "fixtures": [
+      "heatmap-json"
+    ]
+  },
+  {
+    "legacy": "coprarna_aux/parallelize_target_alignments.pl",
+    "status": "ported",
+    "target": "coprarna.alignments.align_targets",
+    "command": "coprarna helper align-targets",
+    "fixtures": [
+      "tests/test_workflow.py::test_parallel_alignment_inputs_and_outputs_match"
+    ]
+  },
+  {
+    "legacy": "coprarna_aux/parse_16s_from_gbk.pl",
+    "status": "ported",
+    "target": "coprarna.genome.extract_16s",
+    "command": "coprarna helper extract-16s",
+    "fixtures": [
+      "extract-16s"
+    ]
+  },
+  {
+    "legacy": "coprarna_aux/parse_homologs_from_domclust_table.pl",
+    "status": "ported",
+    "target": "coprarna.tables.additional_homologs",
+    "command": "coprarna helper additional-homologs",
+    "fixtures": [
+      "additional-homologs"
+    ]
+  },
+  {
+    "legacy": "coprarna_aux/parse_region_from_genome.pl",
+    "status": "ported",
+    "target": "coprarna.genome.parse_regions",
+    "command": "coprarna helper genome-regions",
+    "fixtures": [
+      "region-circular-3utr",
+      "region-circular-5utr",
+      "region-circular-cds",
+      "region-linear-3utr",
+      "region-linear-5utr",
+      "region-linear-cds"
+    ]
+  },
+  {
+    "legacy": "coprarna_aux/prep_cop2.R",
+    "status": "ported",
+    "target": "coprarna.statistics.prepare_copra2",
+    "command": "coprarna helper prepare-copra2",
+    "fixtures": [
+      "prepare-copra2"
+    ]
+  },
+  {
+    "legacy": "coprarna_aux/prepare_intarna_out.pl",
+    "status": "ported",
+    "target": "coprarna.intarna.prepare_predictions",
+    "command": "coprarna helper prepare-intarna",
+    "fixtures": [
+      "tests/test_workflow.py::test_full_native_prediction_matches_legacy"
+    ]
+  },
+  {
+    "legacy": "coprarna_aux/prepare_output_for_websrv_new.pl",
+    "status": "ported",
+    "target": "coprarna.webserver.prepare_webserver_output",
+    "command": "coprarna helper webserver-output",
+    "fixtures": [
+      "webserver-output"
+    ]
+  },
+  {
+    "legacy": "coprarna_aux/print_archive_README.pl",
+    "status": "ported",
+    "target": "coprarna.resources.archive_readme",
+    "command": "coprarna helper archive-readme",
+    "fixtures": [
+      "archive-readme"
+    ]
+  },
+  {
+    "legacy": "coprarna_aux/rasterize.js",
+    "status": "ported",
+    "target": "coprarna.webserver.rasterize_heatmap",
+    "command": "coprarna helper rasterize",
+    "fixtures": [
+      "tests/test_adapters.py::test_rasterize_real_chromium"
+    ]
+  },
+  {
+    "legacy": "coprarna_aux/remove_clusters_under_percantage.R",
+    "status": "ported",
+    "target": "coprarna.statistics.filter_clusters",
+    "command": "coprarna helper filter-clusters",
+    "fixtures": [
+      "filter-clusters",
+      "filter-clusters-numeric"
+    ]
+  },
+  {
+    "legacy": "coprarna_aux/script_R_plots_8.R",
+    "status": "ported",
+    "target": "coprarna.plots.plot_interaction_regions",
+    "command": "coprarna helper plot-regions",
+    "fixtures": [
+      "tests/test_workflow.py::test_plot_geometry_and_heatmap_match_original_R"
+    ]
+  },
+  {
+    "legacy": "coprarna_aux/transform_distmat.pl",
+    "status": "ported",
+    "target": "coprarna.phylogeny.transform_distance",
+    "command": "coprarna helper transform-distance",
+    "fixtures": [
+      "transform-distance"
+    ]
+  },
+  {
+    "legacy": "update_kegg2refseq/add_date_omit_incompatible.sh",
+    "status": "ported",
+    "target": "coprarna.maintenance.write_availability_header",
+    "command": "coprarna helper availability-header",
+    "fixtures": [
+      "tests/test_adapters.py::test_maintenance_mapping_matches_seeded_legacy"
+    ]
+  },
+  {
+    "legacy": "update_kegg2refseq/build_kegg2refseq.pl",
+    "status": "ported",
+    "target": "coprarna.maintenance.build_organism_mapping",
+    "command": "coprarna helper organism-mapping",
+    "fixtures": [
+      "tests/test_adapters.py::test_maintenance_mapping_matches_seeded_legacy"
+    ]
+  }
+]

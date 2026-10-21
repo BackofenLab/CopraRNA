@@ -1,0 +1,3 @@
+Annotation Cluster 1	Enrichment Score:  2.5
+Category	Term	Count	%	Pvalue	Genes
+GO	termA	1	10	0.01	100

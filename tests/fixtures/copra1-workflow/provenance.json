@@ -1,0 +1,6 @@
+{
+  "seed": 731,
+  "command": "R_PROFILE_USER=seed731.R CopraRNA2.pl --srnaseq input_sRNA.fa --winsize 80 --maxbpdist 60 --cores 2 --topcount 20 --cop1 --noclean",
+  "r": "4.5.2",
+  "perl": "5.32.1"
+}

@@ -1,0 +1,11 @@
+{
+  "language": "perl",
+  "script": "coprarna_aux/prepare_output_for_websrv_new.pl",
+  "args": [
+    "prediction.csv",
+    "interactions.txt"
+  ],
+  "outputs": [
+    "coprarna_internal_table.csv"
+  ]
+}

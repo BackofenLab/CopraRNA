@@ -1,0 +1,9 @@
+{
+  "script": "coprarna_aux/add_pval_to_csv_evdfit.R",
+  "language": "r",
+  "args": [],
+  "outputs": [
+    "NC_000001_opt.intarna.csv",
+    "NC_000001_subopt.intarna.csv"
+  ]
+}

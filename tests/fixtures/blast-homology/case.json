@@ -1,0 +1,8 @@
+{
+  "script": "coprarna_aux/blast2homfile.pl",
+  "language": "perl",
+  "args": [
+    "blast.tsv"
+  ],
+  "outputs": []
+}

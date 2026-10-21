@@ -1,0 +1,6 @@
+[
+{"flagF":1,"fMax":2,"fNum":1,"feature":"geneA","flagS":1,"sMax":2,"sNum":1,"source":"GO_term","color":"#8cffff","value":0.001,"group":"1:2.50:#00ffff;2:1.20:#ff0000"},
+{"flagF":1,"fMax":2,"fNum":2,"feature":"geneB","flagS":0,"sMax":2,"sNum":1,"source":"GO_term","color":"#ffffff","value":0.001,"group":"1:2.50:#00ffff;2:1.20:#ff0000"},
+{"flagF":0,"fMax":2,"fNum":1,"feature":"geneA","flagS":1,"sMax":2,"sNum":2,"source":"Other_term","color":"#ffffff","value":0.1,"group":"1:2.50:#00ffff;2:1.20:#ff0000"},
+{"flagF":0,"fMax":2,"fNum":2,"feature":"geneB","flagS":0,"sMax":2,"sNum":2,"source":"Other_term","color":"#ffd8d8","value":0.1,"group":"1:2.50:#00ffff;2:1.20:#ff0000"}
+]

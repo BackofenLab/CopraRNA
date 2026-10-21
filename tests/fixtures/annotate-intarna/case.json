@@ -1,0 +1,11 @@
+{
+  "script": "coprarna_aux/add_GI_genename_annotation_intarna.pl",
+  "language": "perl",
+  "args": [],
+  "outputs": [
+    "intarna_websrv_table_ncbi.csv"
+  ],
+  "modules": [
+    "Bio::SeqIO"
+  ]
+}

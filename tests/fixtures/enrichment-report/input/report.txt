@@ -1,0 +1,14 @@
+score=2.5
+afdr=0.05
+categoryName="GO"
+termName="a term"
+listHits=2
+percent=10
+ease=0.01
+geneIds="100, 101"
+listTotals=20
+popHits=4
+popTotals=500
+foldEnrichment=3
+bonferroni=0.2
+benjamini=0.1

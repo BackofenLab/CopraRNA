@@ -1,20 +1,7 @@
 """Dedicated regressions for each isolated correction on the phase-6 branch."""
 
-import shutil
 from coprarna.compatibility import legacy_behavior
-from coprarna import statistics
 from tests.support.legacy import FIXTURES
-
-
-def test_filter_renames_pvalue_column_without_overwriting_normalized_energy(tmp_path):
-    shutil.copytree(FIXTURES / "filter-clusters/input", tmp_path, dirs_exist_ok=True)
-    with legacy_behavior(False):
-        statistics.filter_clusters(tmp_path)
-    header = (
-        (tmp_path / "opt_tags.clustered_rcsize").read_text().splitlines()[0].split(";")
-    )
-    assert header[34] == "E_norm"
-    assert header[35] == "p-value"
 
 
 def _genbank(path, sequences):
@@ -105,19 +92,6 @@ def test_heatmap_json_escapes_quotes_and_backslashes(tmp_path):
     assert data[0]["source"] == rows[3][4]
 
 
-def test_copra1_rho_error_uses_histogram_density():
-    import numpy as np
-    import pytest
-    from coprarna.combination import _histogram_error
-
-    # Independently evaluated by R hist(...,breaks=100): sum((1-h$density)^2).
-    skew = np.r_[np.zeros(90), np.linspace(0.1, 1, 10)]
-    assert _histogram_error(skew) == pytest.approx(8010.0, abs=1e-9)
-    assert _histogram_error(np.linspace(0.005, 0.995, 100)) < 1e-20
-    with legacy_behavior():
-        assert _histogram_error(skew) == 0
-
-
 def test_domclust_options_precede_positional_files(tmp_path, monkeypatch):
     from coprarna import homology
 
@@ -177,15 +151,6 @@ def _plot_fixture(tmp_path, monkeypatch, region, count):
 
     monkeypatch.setattr(plots, "region_plot_data", geometry)
 
-    def ps_output(args, directory):
-        output = next(
-            value.split("=", 1)[1]
-            for value in args
-            if value.startswith("-sOutputFile=")
-        )
-        (directory / output).write_text("%!PS-Adobe-3.0\n")
-
-    monkeypatch.setattr(plots, "command", ps_output)
     return plots, table
 
 
@@ -195,11 +160,7 @@ def test_lowercase_cds_region_plot_renders(tmp_path, monkeypatch):
     assert (
         (tmp_path / "mRNA_regions_with_histogram.pdf").read_bytes().startswith(b"%PDF")
     )
-    assert (
-        (tmp_path / "sRNA_regions_with_histogram.png")
-        .read_bytes()
-        .startswith(b"\x89PNG")
-    )
+    assert (tmp_path / "sRNA_regions_with_histogram.svg").is_file()
 
 
 def test_short_predictions_plot_without_padding_or_out_of_bounds(tmp_path, monkeypatch):

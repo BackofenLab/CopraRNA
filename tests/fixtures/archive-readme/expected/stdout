@@ -4,7 +4,7 @@ CopraRNA - archive README
 License: MIT
 
 When using CopraRNA please cite:
-Patrick R. Wright, et al. 
+Patrick R. Wright, et al.
 Comparative genomics boosts target prediction for bacterial small RNAs
 Proc Natl Acad Sci USA, 2013, 110 (37), E3487–E3496
 
@@ -39,8 +39,8 @@ This file contains the set of input options.
 This is the FASTA file containing the (aligned) 16s sequences that
 the phylogeny is calculated on.
 
-compatible.treefile/.fneighbor (in Phylogeny):
-These files stores the 16s phylogeny.
+compatible.treefile/.fneighbor/.treefile.svg (in Phylogeny):
+These files store the 16S phylogeny and its Python-rendered SVG visualization.
 
 compatible.distmat (in Phylogeny):
 This file contains the distance matrix for the 16s phylogeny.
@@ -51,34 +51,42 @@ If an organism has a weight greater than 0.5 then this is reported in
 weights.warning.
 
 cluster.tab:
-This tab delimited file contains the clusters of homologous 
-protein coding genes throughout the organisms participating 
+This tab delimited file contains the clusters of homologous
+protein-coding genes throughout the organisms participating
 in the prediction. The clusters are computed with DomClust.
 
-*regions *pdf *ps *png (in Regions_plots):
-These image files contain the regions plots of your run.
+*regions*.pdf / *regions*.svg (in Regions_plots):
+Vector interaction-region plots. Extended PDFs contain all pages; their SVG
+companions stack every page in one canvas. Web thumbnails are SVG files.
 
-*.fa.intarna.csv (in IntaRNA):
+*.fa.intarna.csv.gz (in IntaRNA):
 These files contain the results of the single IntaRNA whole
 genome predictions for each organism participating in the analysis.
-One of these files is created per organism.
+One of these files is created per organism. IntaRNAsTar writes gzip directly.
+The accompanying .filter.json identifies removed near-full-length perfect
+helices and records the input/parameter signature used to validate cached data.
 
-ncrna.fa (in FASTA):
-This FASTA contains the sequences you submitted.
+ncrna.fa / coprarna_input_*.fa (in FASTA):
+These working FASTAs contain normalized submitted sequences. Your original
+input FASTA remains at its original path, byte unchanged.
+
+IntaRNA_parameters.txt / genome_paths.txt:
+The native parameter snapshot and the paths of compressed genomes used by the
+job. A shared genome database can be selected with --genome-db; genomes are read
+directly from gzip files without per-job copies or decompression.
 
 *_upfromstartpos_*_down_*.fa (in FASTA):
 These FASTA files contain the putative target sequences of the
 respective organisms in the prediction.
 
 *tags.clustered*:
-These files contain the IntaRNA predictions for for the clusters
-of homologous putative targets. _rcsize is the truncated input
-for the CopraRNA 1 thread (only if -cop1 was set).
+These files contain the IntaRNA predictions for the clusters
+of homologous putative targets.
 
 target_sequences_orgofint.fa: (only if -websrv was set // in FASTA)
 This FASTA contains the putative target sequences extracted from the
 organism of interest's genome. It is a copy of one of the
-*_upfromstartpos_*_down_*.fa files. 
+*_upfromstartpos_*_down_*.fa files.
 
 coprarna_websrv_table.csv: (only if -websrv was set)
 This csv table contains the data for the Freiburg RNA tools webserver frontend.
@@ -99,9 +107,9 @@ It can be viewed in your web browser. The json file is needed for correct
 display of copra_heatmap.html.
 
 enriched_heatmap_big.*: (in Enrichment)
-pdf and png files for the functional enrichment heatmap.
+PDF and SVG vector files for the functional enrichment heatmap.
 
-sRNA_conservation_heatmap.pdf:
+sRNA_conservation_heatmap.pdf / .svg:
 This file shows the interaction conservation of the top 25 predictions.
 
 evo_alignments.zip:
@@ -109,11 +117,11 @@ This archive contains the alignments of the clusters of putative target
 sequences with an annotation to visualize the interaction sites and consensus
 interaction regions in Jalview.
 
-all_predictions (not made if -cop1):
-This directory contains the results for all modes available in CopraRNA 2. 
+all_predictions:
+This directory contains intermediate comparative result tables.
 
 Rdata:
-Precomputed R data environments. 
+Precomputed R data environments.
 
 README.txt:
 This file.

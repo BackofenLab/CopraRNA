@@ -1,5 +1,0 @@
-sRNA FASTA:input_sRNA.fa
-nt upstream:200
-nt downstream:100
-region:5utr
-relative clustersize:0.5

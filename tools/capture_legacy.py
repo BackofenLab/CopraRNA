@@ -12,8 +12,10 @@ from tests.support.legacy import FIXTURES, capture, interpreter
 
 def main():
     for specfile in sorted(FIXTURES.glob("*/case.json")):
-        case = specfile.parent
         spec = json.loads(specfile.read_text())
+        if not spec.get("legacy_parity", True):
+            continue
+        case = specfile.parent
         with tempfile.TemporaryDirectory(prefix="coprarna-oracle-") as directory:
             outputs = capture(case, Path(directory))
         expected = case / "expected"

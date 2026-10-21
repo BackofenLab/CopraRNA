@@ -4,9 +4,9 @@ Status: **ported**.
 
 Python counterpart: `coprarna.tables.add_sampled_count`.
 
-Command: `coprarna helper sampled-count` followed by `result-table copra2`.
+Command: `coprarna helper sampled-count` followed by `result-table`.
 
-Regression fixtures: `sampled-0`, `sampled-1`.
+Regression fixtures: `sampled-1`.
 
 The original source is retained unchanged. See `AGENTS.md` and `README.2.md`
 for validation scope and compatibility decisions.

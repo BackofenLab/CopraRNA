@@ -16,6 +16,8 @@ CASES = sorted(FIXTURES.glob("*/case.json"))
 )
 def test_legacy_matches_captured_baseline(case, tmp_path):
     spec = json.loads((case / "case.json").read_text())
+    if not spec.get("legacy_parity", True):
+        pytest.skip("Output intentionally updated by the review")
     executable = interpreter(spec["language"])
     if not executable:
         pytest.skip(f"Legacy {spec['language']} runtime unavailable")

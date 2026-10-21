@@ -37,7 +37,7 @@ def capture(case: Path, directory: Path) -> dict[str, bytes]:
         )
         source = wrapper
     result = subprocess.run(
-        [executable, str(source), *spec["args"]],
+        [executable, str(source), *spec.get("legacy_args", spec["args"])],
         cwd=directory,
         env=env,
         capture_output=True,

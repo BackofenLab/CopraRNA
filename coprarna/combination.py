@@ -321,7 +321,12 @@ def _histogram_error(values):
     _counts = np.bincount(np.clip(bins, 0, len(breaks) - 2), minlength=len(breaks) - 1)
     # Legacy hist objects have density, not intensities. Accessing the absent
     # intensities member yields NULL, and sum((1-NULL)^2) is zero.
-    return 0.0
+    from .compatibility import legacy_enabled
+
+    if legacy_enabled():
+        return 0.0
+    density = _counts / (len(values) * np.diff(breaks))
+    return r_sum((1 - density) ** 2)
 
 
 def join_copra1(path: Path, directory: Path, seed=None) -> str:

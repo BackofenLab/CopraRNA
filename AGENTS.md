@@ -232,3 +232,6 @@ regressions while each correction gets its own test and commit.
 5. Keep the first (second-best overall) suboptimal row in energy-sorted input.
 
 6. Escape feature/source strings when emitting enrichment JSON.
+
+7. Score CopraRNA1 candidate correlations using histogram density; the
+   legacy nonexistent intensities property made every candidate score zero.

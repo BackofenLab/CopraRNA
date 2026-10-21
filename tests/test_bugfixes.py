@@ -104,3 +104,16 @@ def test_heatmap_json_escapes_quotes_and_backslashes(tmp_path):
     data = json.loads((tmp_path / "copraRNA.json").read_text())
     assert data[0]["feature"] == rows[2][11]
     assert data[0]["source"] == rows[3][4]
+
+
+def test_copra1_rho_error_uses_histogram_density():
+    import numpy as np
+    import pytest
+    from coprarna.combination import _histogram_error
+
+    # Independently evaluated by R hist(...,breaks=100): sum((1-h$density)^2).
+    skew = np.r_[np.zeros(90), np.linspace(0.1, 1, 10)]
+    assert _histogram_error(skew) == pytest.approx(8010.0, abs=1e-9)
+    assert _histogram_error(np.linspace(0.005, 0.995, 100)) < 1e-20
+    with legacy_behavior():
+        assert _histogram_error(skew) == 0

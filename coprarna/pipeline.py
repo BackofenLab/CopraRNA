@@ -33,6 +33,7 @@ class Config:
     cons: int = 0
     ooifilt: float = 0.0
     seed: int | None = None
+    legacy: bool = False
 
 
 def _validate(path, config, directory):
@@ -178,6 +179,13 @@ def _cleanup(directory, config):
 
 def run_prediction(srna: Path, directory: Path, config: Config | None = None) -> str:
     config = config or Config()
+    from .compatibility import legacy_behavior
+
+    with legacy_behavior(config.legacy):
+        return _run_prediction(srna, directory, config)
+
+
+def _run_prediction(srna, directory, config):
     directory = Path(directory).resolve()
     directory.mkdir(parents=True, exist_ok=True)
     srna = Path(srna)

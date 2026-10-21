@@ -23,6 +23,9 @@ def _parser():
     helper = commands.add_parser(
         "helper", help="Execute a validated port in one working directory"
     )
+    helper.add_argument(
+        "--legacy", action="store_true", help="Reproduce the frozen legacy defects"
+    )
     helper.add_argument("--workdir", type=Path, default=Path.cwd())
     helper.add_argument("name", help="Helper name or original script basename")
     helper.add_argument("args", nargs=argparse.REMAINDER)
@@ -211,7 +214,9 @@ def main(argv=None) -> int:
         elif args.command == "status":
             print(files("coprarna").joinpath("migration.json").read_text(), end="")
         elif args.command == "helper":
-            sys.stdout.write(run_helper(args.name, args.args, args.workdir))
+            sys.stdout.write(
+                run_helper(args.name, args.args, args.workdir, legacy=args.legacy)
+            )
         elif args.command == "batch":
             if args.jobs < 1:
                 raise ValueError("--jobs must be at least 1")

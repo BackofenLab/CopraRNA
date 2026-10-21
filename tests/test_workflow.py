@@ -161,6 +161,7 @@ def test_full_seeded_copra1_matches_legacy(tmp_path):
             cop1=True,
             seed=731,
             noclean=True,
+            legacy=True,
         ),
     )
     with tarfile.open(FIXTURES / "copra1-workflow/legacy.tar.gz") as archive:

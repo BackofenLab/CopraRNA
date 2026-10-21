@@ -243,7 +243,16 @@ def resolve(name: str) -> str:
     )
 
 
-def run_helper(name: str, args: list[str], directory: Path, *, seed=None) -> str:
+def run_helper(
+    name: str, args: list[str], directory: Path, *, seed=None, legacy=False
+) -> str:
+    from .compatibility import legacy_behavior
+
+    with legacy_behavior(legacy):
+        return _run_helper(name, args, directory, seed=seed)
+
+
+def _run_helper(name: str, args: list[str], directory: Path, *, seed=None) -> str:
     name = resolve(name)
     spec = HELPERS[name]
     expected = len(spec.arguments)
@@ -323,7 +332,16 @@ def run_helper(name: str, args: list[str], directory: Path, *, seed=None) -> str
     )
 
     if name == "predict":
-        return pipeline.run_prediction(path(0), directory, pipeline.Config(seed=seed))
+        return pipeline.run_prediction(
+            path(0),
+            directory,
+            pipeline.Config(
+                seed=seed,
+                legacy=__import__(
+                    "coprarna.compatibility", fromlist=["legacy_enabled"]
+                ).legacy_enabled(),
+            ),
+        )
     if name == "homology":
         return homology.run_homology(
             path(0), int(args[1]), int(args[2]), args[3], args[4:], directory, seed

@@ -96,7 +96,9 @@ def filter_clusters(directory: Path) -> str:
     header = lines[0].split(";")
     # read.table applies make.names; the wrong legacy rename is intentional.
     header = [name.replace("-", ".") for name in header]
-    header[34] = "p-value"
+    from .compatibility import legacy_enabled
+
+    header[34 if legacy_enabled() else 35] = "p-value"
     rows = _r_normalize_numeric_columns([line.split(";") for line in lines[1:]])
     counts = Counter(int(row[-1]) for row in rows)
     last_cluster = int(rows[-1][-1])

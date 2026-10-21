@@ -212,3 +212,13 @@ genomes, both complete native workflows and Chromium enabled. Source/wheel build
 succeeded; the installed console entry point and inventory work from outside the
 repository. The R peak finder safely ends at the right boundary because
 R evaluates `NA & FALSE` as FALSE; the Python bounds check preserves that behavior.
+
+## Phase 6: isolated bug fixes
+
+The stacked branch adds an explicit `--legacy` compatibility mode; corrected
+behavior is the default. A ContextVar isolates modes between independent batch
+jobs. Oracle fixtures explicitly use legacy mode, retaining the original rewrite
+regressions while each correction gets its own test and commit.
+
+1. Fix the cluster-size filter's p-value header index (36th column); retain
+   normalized energy's column name.

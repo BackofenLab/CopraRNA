@@ -226,3 +226,5 @@ regressions while each correction gets its own test and commit.
 2. Extract each record's regions from that record's sequence/topology.
 
 3. Complement all IUPAC ambiguity symbols in reverse-strand flanks.
+
+4. Resolve organism codes using the GenBank basename for absolute paths.

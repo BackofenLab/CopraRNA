@@ -171,7 +171,13 @@ def extract_proteins(
     path: Path, mapping_text: str, display_name: str | None = None
 ) -> str:
     # Matching is deliberately unanchored, and removes exactly three filename bytes.
-    accession = (display_name or str(path))[:-3]
+    from .compatibility import legacy_enabled
+
+    accession = (
+        (display_name or str(path))[:-3]
+        if legacy_enabled()
+        else Path(display_name or path).stem
+    )
     code = ""
     for line in mapping_text.splitlines():
         if re.search(accession, line):

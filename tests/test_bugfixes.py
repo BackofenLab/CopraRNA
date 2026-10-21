@@ -59,3 +59,13 @@ def test_reverse_flanks_complement_iupac_ambiguity_and_case():
     assert _reverse_complement("arykmbvdhn") == "ndhbvkmryt"
     with legacy_behavior():
         assert _reverse_complement("ARYKMBVDHN") == "NHDVBMKYRT"
+
+
+def test_protein_mapping_uses_basename_for_absolute_input(tmp_path):
+    from coprarna.genome import extract_proteins
+
+    path = tmp_path / "NC_000001.gb"
+    _genbank(path, ["A" * 1000])
+    assert extract_proteins(path, "abcd\tNC_000001\n") == ">abcd:tag0\nMAA\n"
+    with legacy_behavior():
+        assert extract_proteins(path, "abcd\tNC_000001\n") == ">:tag0\nMAA\n"

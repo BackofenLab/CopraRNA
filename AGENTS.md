@@ -235,3 +235,5 @@ regressions while each correction gets its own test and commit.
 
 7. Score CopraRNA1 candidate correlations using histogram density; the
    legacy nonexistent intensities property made every candidate score zero.
+
+8. Place DomClust options before positional inputs so 1.2.8 honors table mode.

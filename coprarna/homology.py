@@ -32,6 +32,18 @@ def affiliations():
     return result
 
 
+def run_domclust(directory):
+    from .compatibility import legacy_enabled
+
+    flags = ["-HO", "-S", "-c60", "-p0.5", "-V0.6", "-C80", "-o5"]
+    files = ["all.fas.hom", "all.fas.gene"]
+    command(
+        ["domclust", *(files + flags if legacy_enabled() else flags + files)],
+        directory,
+        output="cluster.tab",
+    )
+
+
 def run_homology(
     srna: Path,
     up: int,
@@ -142,22 +154,7 @@ def run_homology(
             tables.blast_to_homology(directory / "all.fas.blast")
         )
         fasta.fasta_to_genefile(directory / "all.fas")
-        command(
-            [
-                "domclust",
-                "all.fas.hom",
-                "all.fas.gene",
-                "-HO",
-                "-S",
-                "-c60",
-                "-p0.5",
-                "-V0.6",
-                "-C80",
-                "-o5",
-            ],
-            directory,
-            output="cluster.tab",
-        )
+        run_domclust(directory)
     if not (directory / "16s_sequences.fa").exists():
         (directory / "16s_sequences.fa").write_text(
             genome.extract_16s(groups, directory)

@@ -117,3 +117,28 @@ def test_copra1_rho_error_uses_histogram_density():
     assert _histogram_error(np.linspace(0.005, 0.995, 100)) < 1e-20
     with legacy_behavior():
         assert _histogram_error(skew) == 0
+
+
+def test_domclust_options_precede_positional_files(tmp_path, monkeypatch):
+    from coprarna import homology
+
+    calls = []
+    monkeypatch.setattr(
+        homology, "command", lambda args, directory, output: calls.append(args)
+    )
+    homology.run_domclust(tmp_path)
+    assert calls[-1] == [
+        "domclust",
+        "-HO",
+        "-S",
+        "-c60",
+        "-p0.5",
+        "-V0.6",
+        "-C80",
+        "-o5",
+        "all.fas.hom",
+        "all.fas.gene",
+    ]
+    with legacy_behavior():
+        homology.run_domclust(tmp_path)
+    assert calls[-1][1:3] == ["all.fas.hom", "all.fas.gene"]

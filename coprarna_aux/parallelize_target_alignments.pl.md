@@ -1,13 +1,12 @@
 # `parallelize_target_alignments.pl` migration mapping
 
-Status: **pending**.
+Status: **ported**.
 
-Planned counterpart: `coprarna.alignments.align_targets`.
+Python counterpart: `coprarna.alignments.align_targets`.
 
-This module/function has **not been implemented**. The legacy source remains
-the implementation for this stage. It is not called by the new Python package.
+Command: `coprarna helper align-targets` followed by `prediction-table`.
 
-No regression fixtures have been captured for this stage yet.
+Regression fixtures: `tests/test_workflow.py::test_parallel_alignment_inputs_and_outputs_match`.
 
 The original source is retained unchanged. See `AGENTS.md` and `README.2.md`
-for parity limitations and remaining migration work.
+for validation scope and compatibility decisions.

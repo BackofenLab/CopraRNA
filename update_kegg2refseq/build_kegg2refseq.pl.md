@@ -1,13 +1,12 @@
 # `build_kegg2refseq.pl` migration mapping
 
-Status: **pending**.
+Status: **ported**.
 
-Planned counterpart: `coprarna.maintenance.build_organism_mapping`.
+Python counterpart: `coprarna.maintenance.build_organism_mapping`.
 
-This module/function has **not been implemented**. The legacy source remains
-the implementation for this stage. It is not called by the new Python package.
+Command: `coprarna helper organism-mapping`.
 
-No regression fixtures have been captured for this stage yet.
+Regression fixtures: `tests/test_adapters.py::test_maintenance_mapping_matches_seeded_legacy`.
 
 The original source is retained unchanged. See `AGENTS.md` and `README.2.md`
-for parity limitations and remaining migration work.
+for validation scope and compatibility decisions.

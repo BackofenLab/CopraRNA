@@ -9,4 +9,4 @@ Command: `coprarna helper genome-regions` followed by `genbank ntup ntdown regio
 Regression fixtures: `region-circular-5utr`, `region-linear-3utr`, `region-linear-5utr`, `region-linear-cds`, `region-circular-3utr`, `region-circular-cds`.
 
 The original source is retained unchanged. See `AGENTS.md` and `README.2.md`
-for parity limitations and remaining migration work.
+for validation scope and compatibility decisions.

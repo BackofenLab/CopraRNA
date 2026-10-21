@@ -175,3 +175,33 @@ A synthetic offline three-genome fixture uses the supported imported-cluster
 path. The installed DomClust 1.2.8 ignores trailing options after its positional
 files, so the original invocation produces list output instead of the requested
 table. This invocation defect is reserved for the bug-fix branch.
+
+### Complete workflow and reporting validation
+
+All 41 original scripts now have Python counterparts. The full synthetic
+three-genome/30-cluster workflow matches legacy prediction CSVs, weights,
+phylogeny distances and target alignments byte for byte. All 203 Jalview exports
+match exactly, including R's retained source row numbers and padded matrix
+columns. Conservation, interaction and sparse named consensus R objects are
+checked semantically; serialization headers and compression are not compared.
+The seeded full CopraRNA1 workflow also matches final tables and sampled outputs.
+
+Plot geometry, heatmap scores, annotations and average-linkage leaf order match
+independently captured R data. Matplotlib replaces R rendering, so typography
+and PDF/PS bytes differ. Ghostscript preserves all pages in PostScript exports.
+Chromium replaces PhantomJS and is tested by real PNG/PDF rendering. SOAP clients
+are compared directly with the unchanged Python source using an offline client;
+NCBI request contracts and cached-file behavior are tested without live services.
+The seeded organism-list fixture was captured from untouched Perl/Bash sources.
+
+Modern IntaRNA removed old UI modes. The Python webserver adapter reproduces the
+IntaRNA v2.2.0 `OutputHandlerIntaRNA1.cpp` ASCII layout from native CSV/base-pair
+data, using the original Perl wrapper's scientific options. No legacy wrapper is
+executed. The original CopraRNA formatter is still independently byte-validated.
+
+The fresh full `environment.yml` install succeeded after clearing disposable task
+caches. Runtime pins now include the native scientific executables and Python
+statistics/reporting dependencies. Full pipeline tests are opt-in because they
+require these executables; the complete offline fixture is committed for CI.
+Remaining work in this task is verification/publishing and the separate bug-fix
+branch required by phase 6, not additional unported components.

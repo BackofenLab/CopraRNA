@@ -9,4 +9,4 @@ Command: `coprarna helper fasta-gene` followed by `fasta`.
 Regression fixtures: `fasta-gene`.
 
 The original source is retained unchanged. See `AGENTS.md` and `README.2.md`
-for parity limitations and remaining migration work.
+for validation scope and compatibility decisions.

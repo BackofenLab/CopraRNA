@@ -1,13 +1,12 @@
 # `get_refseq_from_refid.pl` migration mapping
 
-Status: **pending**.
+Status: **ported**.
 
-Planned counterpart: `coprarna.ncbi.download_genbank`.
+Python counterpart: `coprarna.ncbi.download_genbank`.
 
-This module/function has **not been implemented**. The legacy source remains
-the implementation for this stage. It is not called by the new Python package.
+Command: `coprarna helper download-genbank` followed by `-acc accession -g output`.
 
-No regression fixtures have been captured for this stage yet.
+Regression fixtures: `cached-genbank`.
 
 The original source is retained unchanged. See `AGENTS.md` and `README.2.md`
-for parity limitations and remaining migration work.
+for validation scope and compatibility decisions.

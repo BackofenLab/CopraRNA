@@ -9,4 +9,4 @@ Command: `coprarna helper compute-weights` followed by `tree neighbor-output`.
 Regression fixtures: `weights-zero`, `weights-branches`.
 
 The original source is retained unchanged. See `AGENTS.md` and `README.2.md`
-for parity limitations and remaining migration work.
+for validation scope and compatibility decisions.

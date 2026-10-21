@@ -34,3 +34,23 @@ jobs:
           /tmp/coprarna-wheel/bin/coprarna --version
           /tmp/coprarna-wheel/bin/coprarna status
           /tmp/coprarna-wheel/bin/coprarna helper archive-readme
+
+  scientific:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: mamba-org/setup-micromamba@v2
+        with:
+          environment-file: environment.yml
+          cache-environment: true
+      - name: Install Python package and browser
+        shell: bash -el {0}
+        run: |
+          python -m pip install --no-deps .
+          python -m playwright install chromium --only-shell
+      - name: Native scientific workflow and browser integration
+        shell: bash -el {0}
+        env:
+          COPRARNA_PIPELINE_TESTS: '1'
+          COPRARNA_BROWSER_TESTS: '1'
+        run: python -m pytest -q

@@ -1,13 +1,12 @@
 # `homology_intaRNA.pl` migration mapping
 
-Status: **pending**.
+Status: **ported**.
 
-Planned counterpart: `coprarna.homology.run_homology`.
+Python counterpart: `coprarna.homology.run_homology`.
 
-This module/function has **not been implemented**. The legacy source remains
-the implementation for this stage. It is not called by the new Python package.
+Command: `coprarna helper homology` followed by `srna up down region accession`.
 
-No regression fixtures have been captured for this stage yet.
+Regression fixtures: `tests/test_workflow.py::test_full_native_prediction_matches_legacy`.
 
 The original source is retained unchanged. See `AGENTS.md` and `README.2.md`
-for parity limitations and remaining migration work.
+for validation scope and compatibility decisions.

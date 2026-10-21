@@ -9,4 +9,4 @@ Command: `coprarna helper adjust-pvalues` followed by `pvalue-table`.
 Regression fixtures: `adjust-pvalues-precision`, `adjust-pvalues`.
 
 The original source is retained unchanged. See `AGENTS.md` and `README.2.md`
-for parity limitations and remaining migration work.
+for validation scope and compatibility decisions.

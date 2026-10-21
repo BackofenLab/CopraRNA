@@ -9,4 +9,4 @@ Command: `coprarna helper annotate-raw` followed by `result-table cluster-table 
 Regression fixtures: `annotate-raw`.
 
 The original source is retained unchanged. See `AGENTS.md` and `README.2.md`
-for parity limitations and remaining migration work.
+for validation scope and compatibility decisions.

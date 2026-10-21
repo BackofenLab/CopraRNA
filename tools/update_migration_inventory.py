@@ -9,26 +9,20 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 from coprarna.helpers import HELPERS  # noqa: E402
 
-PLANNED = {
-    "CopraRNA2.pl": "coprarna.pipeline.run_prediction",
-    "homology_intaRNA.pl": "coprarna.homology.run_homology",
-    "prepare_intarna_out.pl": "coprarna.intarna.prepare_predictions",
-    "combine_clusters.pl": "coprarna.combination.combine_clusters",
-    "get_refseq_from_refid.pl": "coprarna.ncbi.download_genbank",
-    "parallelize_target_alignments.pl": "coprarna.alignments.align_targets",
-    "add_pval_to_csv_evdfit.R": "coprarna.energy.add_energy_pvalues",
-    "join_pvals_coprarna1.R": "coprarna.combination.join_copra1",
-    "join_pvals_coprarna2.R": "coprarna.combination.join_copra2",
-    "copraRNA2_position_script_for_evo_precalculated_alignments_w_ooi.R": "coprarna.conservation.compute_conservation",
-    "script_R_plots_8.R": "coprarna.plots.plot_interaction_regions",
-    "evo_heatmap.R": "coprarna.plots.plot_evolutionary_heatmap",
-    "extract_functional_enriched.R": "coprarna.enrichment.extract_enriched_terms",
-    "DAVIDWebService_CopraRNA.py": "coprarna.david.coprarna_report",
-    "DAVIDWebService_IntaRNA_chartReport.py": "coprarna.david.intarna_report",
-    "prepare_output_for_websrv_new.pl": "coprarna.webserver.prepare_webserver_output",
-    "rasterize.js": "coprarna.webserver.rasterize_heatmap",
-    "build_kegg2refseq.pl": "coprarna.maintenance.build_organism_mapping",
-    "add_date_omit_incompatible.sh": "coprarna.maintenance.write_availability_header",
+COVERAGE = {
+    "CopraRNA2.pl": "tests/test_workflow.py::test_full_native_prediction_matches_legacy",
+    "homology_intaRNA.pl": "tests/test_workflow.py::test_full_native_prediction_matches_legacy",
+    "prepare_intarna_out.pl": "tests/test_workflow.py::test_full_native_prediction_matches_legacy",
+    "combine_clusters.pl": "tests/test_workflow.py::test_full_native_prediction_matches_legacy",
+    "parallelize_target_alignments.pl": "tests/test_workflow.py::test_parallel_alignment_inputs_and_outputs_match",
+    "copraRNA2_position_script_for_evo_precalculated_alignments_w_ooi.R": "tests/test_workflow.py::test_conservation_and_all_203_jalview_exports_match",
+    "script_R_plots_8.R": "tests/test_workflow.py::test_plot_geometry_and_heatmap_match_original_R",
+    "evo_heatmap.R": "tests/test_workflow.py::test_plot_geometry_and_heatmap_match_original_R",
+    "DAVIDWebService_CopraRNA.py": "tests/test_adapters.py::test_david_requests_and_stdout_match_untouched_source",
+    "DAVIDWebService_IntaRNA_chartReport.py": "tests/test_adapters.py::test_david_requests_and_stdout_match_untouched_source",
+    "rasterize.js": "tests/test_adapters.py::test_rasterize_real_chromium",
+    "build_kegg2refseq.pl": "tests/test_adapters.py::test_maintenance_mapping_matches_seeded_legacy",
+    "add_date_omit_incompatible.sh": "tests/test_adapters.py::test_maintenance_mapping_matches_seeded_legacy",
 }
 
 
@@ -46,6 +40,8 @@ def main():
         basename = Path(source).name
         entry = {"legacy": source, "status": "pending"}
         fixtures = [name for name, spec in cases.items() if spec["script"] == source]
+        if basename in COVERAGE:
+            fixtures.append(COVERAGE[basename])
         if basename in by_legacy:
             name, helper = by_legacy[basename]
             entry.update(
@@ -59,10 +55,7 @@ def main():
                 body += " followed by `" + " ".join(helper.arguments) + "`"
             body += "."
         else:
-            entry.update(
-                planned_target=PLANNED[basename], oracle_fixtures=sorted(fixtures)
-            )
-            body = f"Planned counterpart: `{PLANNED[basename]}`.\n\nThis module/function has **not been implemented**. The legacy source remains\nthe implementation for this stage. It is not called by the new Python package."
+            raise ValueError(f"Unmapped original source: {source}")
         mapping = ROOT / (source + ".md")
         mapping.write_text(
             f"# `{basename}` migration mapping\n\nStatus: **{entry['status']}**.\n\n"
@@ -75,7 +68,7 @@ def main():
                 if fixtures
                 else "No regression fixtures have been captured for this stage yet."
             )
-            + "\n\nThe original source is retained unchanged. See `AGENTS.md` and `README.2.md`\nfor parity limitations and remaining migration work.\n"
+            + "\n\nThe original source is retained unchanged. See `AGENTS.md` and `README.2.md`\nfor validation scope and compatibility decisions.\n"
         )
         inventory.append(entry)
     (ROOT / "coprarna/migration.json").write_text(

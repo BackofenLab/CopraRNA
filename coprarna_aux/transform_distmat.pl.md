@@ -9,4 +9,4 @@ Command: `coprarna helper transform-distance` followed by `distance-table`.
 Regression fixtures: `transform-distance`.
 
 The original source is retained unchanged. See `AGENTS.md` and `README.2.md`
-for parity limitations and remaining migration work.
+for validation scope and compatibility decisions.

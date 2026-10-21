@@ -1,13 +1,12 @@
 # `rasterize.js` migration mapping
 
-Status: **pending**.
+Status: **ported**.
 
-Planned counterpart: `coprarna.webserver.rasterize_heatmap`.
+Python counterpart: `coprarna.webserver.rasterize_heatmap`.
 
-This module/function has **not been implemented**. The legacy source remains
-the implementation for this stage. It is not called by the new Python package.
+Command: `coprarna helper rasterize` followed by `address output`.
 
-No regression fixtures have been captured for this stage yet.
+Regression fixtures: `tests/test_adapters.py::test_rasterize_real_chromium`.
 
 The original source is retained unchanged. See `AGENTS.md` and `README.2.md`
-for parity limitations and remaining migration work.
+for validation scope and compatibility decisions.

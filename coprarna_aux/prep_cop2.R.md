@@ -9,4 +9,4 @@ Command: `coprarna helper prepare-copra2` followed by `clustered-table`.
 Regression fixtures: `prepare-copra2`.
 
 The original source is retained unchanged. See `AGENTS.md` and `README.2.md`
-for parity limitations and remaining migration work.
+for validation scope and compatibility decisions.

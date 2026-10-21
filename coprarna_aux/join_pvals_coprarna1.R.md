@@ -9,4 +9,4 @@ Command: `coprarna helper join-copra1` followed by `clustered-table`.
 Regression fixtures: `join-copra1`.
 
 The original source is retained unchanged. See `AGENTS.md` and `README.2.md`
-for parity limitations and remaining migration work.
+for validation scope and compatibility decisions.

@@ -1,13 +1,12 @@
 # `DAVIDWebService_CopraRNA.py` migration mapping
 
-Status: **pending**.
+Status: **ported**.
 
-Planned counterpart: `coprarna.david.coprarna_report`.
+Python counterpart: `coprarna.david.coprarna_report`.
 
-This module/function has **not been implemented**. The legacy source remains
-the implementation for this stage. It is not called by the new Python package.
+Command: `coprarna helper david-copra` followed by `predictions count`.
 
-No regression fixtures have been captured for this stage yet.
+Regression fixtures: `tests/test_adapters.py::test_david_requests_and_stdout_match_untouched_source`.
 
 The original source is retained unchanged. See `AGENTS.md` and `README.2.md`
-for parity limitations and remaining migration work.
+for validation scope and compatibility decisions.

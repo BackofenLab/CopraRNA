@@ -142,3 +142,60 @@ def test_domclust_options_precede_positional_files(tmp_path, monkeypatch):
     with legacy_behavior():
         homology.run_domclust(tmp_path)
     assert calls[-1][1:3] == ["all.fas.hom", "all.fas.gene"]
+
+
+def _plot_fixture(tmp_path, monkeypatch, region, count):
+    from coprarna import plots
+
+    (tmp_path / "CopraRNA_option_file.txt").write_text(
+        f"nt upstream:200\nnt downstream:100\nregion:{region}\nwebsrv:0\n"
+    )
+    table = tmp_path / "predictions.csv"
+    table.write_text(
+        "fdr,p,org,Annotation\n"
+        + "".join("0,0,tag(g|-1|.01|2|4|3|5),annotation\n" for _ in range(count))
+    )
+
+    def geometry(path, number, directory):
+        points = [
+            dict(
+                start=40.0,
+                end=340.0,
+                interaction=[200.0, 210.0],
+                gaps=[],
+                y=1 + i * 2,
+                cluster=i,
+            )
+            for i in range(number)
+        ]
+        return (
+            {"mRNA": points, "sRNA": points},
+            [str(i) for i in range(number)],
+            ["org"],
+        )
+
+    monkeypatch.setattr(plots, "region_plot_data", geometry)
+
+    def ps_output(args, directory):
+        output = next(
+            value.split("=", 1)[1]
+            for value in args
+            if value.startswith("-sOutputFile=")
+        )
+        (directory / output).write_text("%!PS-Adobe-3.0\n")
+
+    monkeypatch.setattr(plots, "command", ps_output)
+    return plots, table
+
+
+def test_lowercase_cds_region_plot_renders(tmp_path, monkeypatch):
+    plots, table = _plot_fixture(tmp_path, monkeypatch, "cds", 15)
+    assert plots.plot_interaction_regions(table, 15, tmp_path) == ""
+    assert (
+        (tmp_path / "mRNA_regions_with_histogram.pdf").read_bytes().startswith(b"%PDF")
+    )
+    assert (
+        (tmp_path / "sRNA_regions_with_histogram.png")
+        .read_bytes()
+        .startswith(b"\x89PNG")
+    )

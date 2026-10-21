@@ -151,7 +151,9 @@ def region_plot_data(path, number, directory):
 def plot_interaction_regions(path: Path, number: int, directory: Path) -> str:
     opt = options(directory)
     # Retain the legacy lowercase-CDS plotting failure; fixed separately.
-    if opt["region"] == "cds":
+    from .compatibility import legacy_enabled
+
+    if opt["region"] == "cds" and legacy_enabled():
         raise ValueError(
             "Legacy region plotting does not initialize center for lowercase cds"
         )
@@ -216,7 +218,7 @@ def plot_interaction_regions(path: Path, number: int, directory: Path) -> str:
                     linewidth=0.7,
                 )
                 axis.axhline(base, color="black", linewidth=0.5)
-        if feature == "mRNA":
+        if feature == "mRNA" and opt["region"] != "cds":
             center = up * 1.2
             axis.axvline(center, color="gray", ymax=0.49 if histogram else 1)
             offsets = (

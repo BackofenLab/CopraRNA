@@ -237,3 +237,6 @@ regressions while each correction gets its own test and commit.
    legacy nonexistent intensities property made every candidate score zero.
 
 8. Place DomClust options before positional inputs so 1.2.8 honors table mode.
+
+9. Render lowercase cds plots with nucleotide coordinates instead of rejecting
+   the CLI's valid region spelling.

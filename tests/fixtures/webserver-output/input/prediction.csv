@@ -1,0 +1,3 @@
+fdr,p-value,NC_000913,Annotation,Additional homologs,Amount sampled
+.01,.002,tag0(gene0|-12|0.01|2|20|3|15|GeneID:100),test,,0
+.01,.002,tag1(gene1|-12|0.01|2|20|3|15|GeneID:101),test,,0

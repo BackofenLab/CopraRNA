@@ -1,0 +1,4 @@
+Alpha bacteria a	-	-	-	-	-	-	-	chromosome:NC_000001.2/plasmid:NC_100001.1;NC_000002.1
+Beta bacteria b	-	-	-	-	-	-	-	NZ_CP000003.1;invalid
+Alpha bacteria a	-	-	-	-	-	-	-	chromosome:NC_000001.2/plasmid:NC_100001.1;NC_000002.1
+unsupported	-	-	-	-	-	-	-	AB_000001

@@ -84,6 +84,11 @@ def parse_regions(path: Path, up: int, down: int, region: str) -> str:
     circular = records[0].annotations.get("topology") == "circular"
     output = []
     for record in records:
+        from .compatibility import legacy_enabled
+
+        if not legacy_enabled():
+            source = str(record.seq)
+            circular = record.annotations.get("topology") == "circular"
         for feature in record.features:
             if feature.type != "CDS":
                 continue

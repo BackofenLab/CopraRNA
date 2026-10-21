@@ -16,3 +16,37 @@ def test_filter_renames_pvalue_column_without_overwriting_normalized_energy(tmp_
     )
     assert header[34] == "E_norm"
     assert header[35] == "p-value"
+
+
+def _genbank(path, sequences):
+    from Bio import SeqIO
+    from Bio.Seq import Seq
+    from Bio.SeqRecord import SeqRecord
+    from Bio.SeqFeature import SeqFeature, SimpleLocation
+
+    records = []
+    for i, sequence in enumerate(sequences):
+        record = SeqRecord(
+            Seq(sequence), id=f"NC_00000{i + 1}.1", name=f"NC_00000{i + 1}"
+        )
+        record.annotations = {"molecule_type": "DNA", "topology": "linear"}
+        record.features = [
+            SeqFeature(
+                SimpleLocation(400, 550, strand=1),
+                type="CDS",
+                qualifiers={"locus_tag": [f"tag{i}"], "translation": ["MAA"]},
+            )
+        ]
+        records.append(record)
+    SeqIO.write(records, path, "genbank")
+
+
+def test_region_features_use_their_own_genbank_record(tmp_path):
+    from coprarna.genome import parse_regions
+
+    path = tmp_path / "records.gb"
+    _genbank(path, ["A" * 1000, "C" * 1000])
+    actual = parse_regions(path, 100, 50, "5utr")
+    assert actual == ">tag0\n" + "A" * 150 + "\n>tag1\n" + "C" * 150 + "\n"
+    with legacy_behavior():
+        assert parse_regions(path, 100, 50, "5utr").endswith("A" * 150 + "\n")

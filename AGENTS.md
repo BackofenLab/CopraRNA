@@ -222,3 +222,5 @@ regressions while each correction gets its own test and commit.
 
 1. Fix the cluster-size filter's p-value header index (36th column); retain
    normalized energy's column name.
+
+2. Extract each record's regions from that record's sequence/topology.

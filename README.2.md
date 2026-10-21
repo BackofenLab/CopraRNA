@@ -183,9 +183,11 @@ personality and filtering; they are not asserted equal to historical predictions
 
 To rerun original helper oracles, set `COPRARNA_LEGACY_PERL` and
 `COPRARNA_LEGACY_RSCRIPT` to suitable interpreters. `environment-legacy.yml`
-records optional interpreter requirements and the archived RobustRankAggreg
-installation command separately. Its source package works with R 4.4.3 without
-the obsolete ABI pins of the old conda binary. The reference-genome test
+records optional Perl requirements; `environment-legacy-r.yml` records the R
+requirements and archived RobustRankAggreg installation command. Separate
+environments avoid incompatible XML/ICU dependencies in old BioPerl and current
+R. The archived pure-R package works with R 4.4.3 without the obsolete ABI pins
+of the old conda binary. The reference-genome test
 compares all three regions on all 17 bundled genomes and needs the Perl modules.
 The updated archive README has its own expectation because its output changed.
 

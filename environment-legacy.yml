@@ -1,4 +1,4 @@
-# CopraRNA2 helper-oracle interpreters only; never production dependencies.
+# Optional Perl helper oracle only; never a production dependency.
 # Native workflow validation uses environment.yml (IntaRNA >=3).
 name: coprarna-legacy-oracle
 channels:
@@ -12,7 +12,5 @@ dependencies:
   - perl-getopt-long
   - perl-list-moreutils
   - perl-parallel-forkmanager
-  - r-base=4.4.3
-# Install the captured helper oracle's pure-R dependency after activation:
-# Rscript -e 'install.packages("https://cran.r-project.org/src/contrib/Archive/RobustRankAggreg/RobustRankAggreg_1.1.tar.gz", repos=NULL, type="source")'
-# Conda's old 1.1 builds pin incompatible R ABIs; the archived source works on R 4.4.3.
+# Keep the R oracle separate: old BioPerl XML libraries conflict with current R.
+# See environment-legacy-r.yml and README.2.md.

@@ -140,4 +140,7 @@ whole-workflow equality is no longer the acceptance criterion.
 Live NCBI/DAVID service availability is not certified by offline request tests.
 The conda environment targets Linux; it is not a published Bioconda recipe or a
 portable lockfile. Original sources remain for auditing, with optional interpreter
-requirements separated in `environment-legacy.yml`.
+requirements separated in `environment-legacy.yml` and `environment-legacy-r.yml`.
+Keep these optional interpreters in separate environments to avoid incompatible
+XML/ICU libraries. The retained RobustRankAggreg 1.1 oracle installs from its
+archived pure-R source, avoiding obsolete conda ABI pins.

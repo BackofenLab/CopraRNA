@@ -169,3 +169,39 @@ def test_full_seeded_copra1_matches_legacy(tmp_path):
             assert (job / member.name).read_bytes() == archive.extractfile(
                 member
             ).read(), member.name
+
+
+@pytest.mark.skipif(
+    os.environ.get("COPRARNA_PIPELINE_TESTS") != "1",
+    reason="opt-in scientific integration",
+)
+def test_corrected_workflow_builds_clusters_exports_web_and_cleans_up(tmp_path):
+    import zipfile
+
+    job = tmp_path / "native"
+    build(job)
+    (job / "cluster.tab").unlink()
+    run_prediction(
+        Path("input_sRNA.fa"),
+        job,
+        Config(winsize=80, maxbpdist=60, cores=2, websrv=True),
+    )
+    assert len((job / "CopraRNA_result_all.csv").read_text().splitlines()) == 31
+    assert (job / "cluster.tab").read_text().startswith("#id\t")
+    # One cluster has no organism-of-interest prediction; the legacy web format skips it.
+    assert len((job / "coprarna_websrv_table.csv").read_text().splitlines()) == 30
+    assert not (job / "cluster.members").exists()
+    assert not list(job.glob("*.gb"))
+    assert not (job / "target_alignments").exists()
+    for feature in ("mRNA", "sRNA"):
+        prefix = (
+            "mRNA_regions_extended_list"
+            if feature == "mRNA"
+            else "sRNA_regions_with_extended_list"
+        )
+        assert b"/Count 2" in (job / "Regions_plots" / (prefix + ".pdf")).read_bytes()
+        assert (job / "Regions_plots" / (prefix + ".ps")).read_text().count(
+            "%%Page: "
+        ) == 2
+    with zipfile.ZipFile(job / "evo_alignments.zip") as archive:
+        assert any(name.endswith("_mapping_result.txt") for name in archive.namelist())

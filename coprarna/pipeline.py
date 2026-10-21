@@ -84,6 +84,7 @@ def _validate(path, config, directory):
 def _cleanup(directory, config):
     patterns = (
         ["ncrna_aligned.fa"]
+        + ([] if config.legacy else ["cluster.members"])
         + ([] if config.cop1 else ["aligned_sRNA.fa"])
         + [
             "*.gb",

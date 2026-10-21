@@ -1,6 +1,5 @@
 """Dedicated regressions for each isolated correction on the phase-6 branch."""
 
-from pathlib import Path
 import shutil
 from coprarna.compatibility import legacy_behavior
 from coprarna import statistics

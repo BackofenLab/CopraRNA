@@ -3,6 +3,8 @@
 from dataclasses import dataclass
 from pathlib import Path
 
+from .compatibility import legacy_enabled
+
 from . import (
     energy,
     combination,
@@ -337,9 +339,7 @@ def _run_helper(name: str, args: list[str], directory: Path, *, seed=None) -> st
             directory,
             pipeline.Config(
                 seed=seed,
-                legacy=__import__(
-                    "coprarna.compatibility", fromlist=["legacy_enabled"]
-                ).legacy_enabled(),
+                legacy=legacy_enabled(),
             ),
         )
     if name == "homology":

@@ -254,3 +254,15 @@ BLAS/CPU configurations remain outside the certified parity environment.
 11. Use supported DomClust mode 9 and convert memberships into the required
     per-organism table, retaining domains and missing organisms. Source inspection
     confirms mode 5's table implementation is obsolete in 1.2.8.
+
+The rewrite PR's full CI matrix now passes with the pinned numerical runtime.
+A corrected native run without imported clusters produces all 30 predictions.
+The modern integration test additionally exercises webserver exports, cleanup,
+Jalview archiving and two-page PDF/PS output at the default topcount.
+
+Final phase-6 validation covers **132 passing checks**: all 131 remaining tests
+passed in the complete oracle/reference/browser run; the corrected full-workflow
+export/cleanup test passed on its targeted rerun. The web table deliberately
+omits the one cluster lacking an organism-of-interest interaction. All ten
+identified defects have dedicated regressions and isolated commits; DomClust's
+mode-9 conversion additionally tests split domains and missing species.

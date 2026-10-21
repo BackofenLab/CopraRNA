@@ -73,12 +73,18 @@ heatmaps, interaction-region plots and a Jalview alignment archive. `--noclean`
 retains intermediate files. `--websrv` adds the webserver interaction table;
 `--enrich N` requests functional enrichment of the first N predictions.
 
-This rewrite branch preserves documented legacy defects, including DomClust's
-obsolete table-output mode and failures when plotting lowercase cds or fewer
-than the requested predictions. An existing `cluster.tab` uses the original
-supported imported-cluster path. Corrections are delivered separately on the
-stacked bug-fix branch. See `AGENTS.md` for the exact compatibility decisions.
-Use fresh job directories: legacy append/overwrite behavior is preserved.
+Corrected behavior is the default on this follow-up branch. It fixes multi-record
+and ambiguous-base parsing, path-based organism lookup, suboptimal selection,
+JSON escaping, p-value headers, CopraRNA1 histogram scoring, DomClust's obsolete
+table mode, lowercase cds plotting and short prediction plots. DomClust runs in
+supported membership mode; Python reconstructs the required cluster table.
+
+Use `coprarna run --legacy ...` or `coprarna helper --legacy ...` to reproduce the
+frozen rewrite behavior, including those defects. Prediction batch jobs accept
+`"legacy":true` in `options`. Python callers can use `Config(legacy=True)`,
+`run_helper(...,legacy=True)` or the scoped `legacy_behavior()` context manager.
+Legacy mode uses the original imported-cluster path for complete oracle runs.
+Use fresh job directories: append/overwrite behavior remains explicit.
 
 ## Independent batches
 

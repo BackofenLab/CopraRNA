@@ -45,6 +45,10 @@ def _positions(sequence):
 
 
 def region_plot_data(path, number, directory):
+    """Map interaction coordinates into MAFFT alignment columns for plotting.
+
+    Return per-feature geometry, cluster labels and organism order. Preserve the
+    legacy gap/coordinate conventions checked against captured R geometry."""
     opt = options(directory)
     up = int(opt["nt upstream"])
     down = int(opt["nt downstream"])
@@ -149,6 +153,10 @@ def region_plot_data(path, number, directory):
 
 
 def plot_interaction_regions(path: Path, number: int, directory: Path) -> str:
+    """Render short and paginated region lists to PDF and vector SVG.
+
+    Clamp requested counts to available predictions. Extended PDFs use 25 clusters
+    per page; their SVG companion includes every page in the same order."""
     opt = options(directory)
     # Retain the legacy lowercase-CDS plotting failure; fixed separately.
     from .compatibility import legacy_enabled
@@ -249,16 +257,17 @@ def plot_interaction_regions(path: Path, number: int, directory: Path) -> str:
         prefix = feature + "_regions_with_histogram"
         shown = min(15, number)
         fig = draw(feature, data[feature][: shown * size], 0, shown, True)
-        for extension in ("pdf", "ps", "png"):
+        for extension in ("pdf", "svg"):
             fig.savefig(directory / f"{prefix}.{extension}", dpi=300)
         if int(opt["websrv"]):
-            fig.savefig(directory / f"thumbnail_{feature}.png", dpi=20)
+            fig.savefig(directory / f"thumbnail_{feature}.svg")
         plt.close(fig)
         prefix = (
             "mRNA_regions_extended_list"
             if feature == "mRNA"
             else "sRNA_regions_with_extended_list"
         )
+        svg_pages = []
         with PdfPages(directory / f"{prefix}.pdf") as pdf:
             for first in range(0, number, 25):
                 count = min(25, number - first)
@@ -270,23 +279,47 @@ def plot_interaction_regions(path: Path, number: int, directory: Path) -> str:
                     False,
                 )
                 pdf.savefig(fig)
+                from io import StringIO
+
+                svg = StringIO()
+                fig.savefig(svg, format="svg")
+                svg_pages.append(svg.getvalue())
                 plt.close(fig)
-        command(
-            [
-                "gs",
-                "-q",
-                "-dBATCH",
-                "-dNOPAUSE",
-                "-sDEVICE=ps2write",
-                f"-sOutputFile={prefix}.ps",
-                f"{prefix}.pdf",
-            ],
-            directory,
-        )
+        write_svg_pages(svg_pages, directory / f"{prefix}.svg")
     return ""
 
 
+def write_svg_pages(pages, output):
+    """Stack all PDF pages in one vector SVG canvas without rasterization."""
+    import xml.etree.ElementTree as ET
+
+    ns = "http://www.w3.org/2000/svg"
+    ET.register_namespace("", ns)
+    roots = [ET.fromstring(page) for page in pages]
+    for root in roots:
+        if "viewBox" not in root.attrib:
+            width = float(re.search(r"[0-9.]+", root.get("width", "600"))[0])
+            height = float(re.search(r"[0-9.]+", root.get("height", "600"))[0])
+            root.set("viewBox", f"0 0 {width} {height}")
+    width = max(float(root.attrib["viewBox"].split()[2]) for root in roots)
+    heights = [float(root.attrib["viewBox"].split()[3]) for root in roots]
+    canvas = ET.Element(
+        "{" + ns + "}svg",
+        width=f"{width}pt",
+        height=f"{sum(heights)}pt",
+        viewBox=f"0 0 {width} {sum(heights)}",
+    )
+    offset = 0
+    for root, height in zip(roots, heights):
+        root.set("x", "0")
+        root.set("y", str(offset))
+        canvas.append(root)
+        offset += height
+    ET.ElementTree(canvas).write(output, encoding="utf-8", xml_declaration=True)
+
+
 def evolutionary_heatmap_data(directory: Path, **settings):
+    """Build conservation scores, labels and the retained hierarchical leaf order."""
     opt = options(directory)
     inputfile = settings.get("inputfile", "CopraRNA_result_all.csv")
     number = int(settings.get("num", 25))
@@ -356,7 +389,7 @@ def evolutionary_heatmap_data(directory: Path, **settings):
             [
                 "clustalo",
                 "-i",
-                "input_sRNA.fa",
+                options(directory).get("working sRNA FASTA", "input_sRNA.fa"),
                 "--distmat-out=distmatout1.txt",
                 "--full",
                 "--use-kimura",
@@ -416,6 +449,7 @@ def evolutionary_heatmap_data(directory: Path, **settings):
 
 
 def plot_evolutionary_heatmap(directory: Path, **settings) -> str:
+    """Write conservation PDF/SVG using vector cells and a matching color legend."""
     scores, notes, tree, labels, genes = evolutionary_heatmap_data(
         directory, **settings
     )
@@ -429,7 +463,7 @@ def plot_evolutionary_heatmap(directory: Path, **settings) -> str:
     palette = ListedColormap(
         ["#caff70", "#c0ff3e", "#b3ee3a", "#9acd32", "#698b22", "#ff8c69"]
     )
-    palette.set_bad("black")
+    palette = palette.with_extremes(bad="black")
     fig = plt.figure(figsize=(11.69, 8.27))
     layout = fig.add_gridspec(2, 1, height_ratios=[1, 8])
     top = fig.add_subplot(layout[0])
@@ -438,7 +472,16 @@ def plot_evolutionary_heatmap(directory: Path, **settings) -> str:
     )
     top.axis("off")
     axis = fig.add_subplot(layout[1])
-    image = axis.imshow(scores, cmap=palette, vmin=0.5, vmax=6.5, aspect="auto")
+    image = axis.pcolormesh(
+        np.arange(scores.shape[1] + 1) - 0.5,
+        np.arange(scores.shape[0] + 1) - 0.5,
+        np.ma.masked_invalid(scores),
+        cmap=palette,
+        vmin=0.5,
+        vmax=6.5,
+        shading="flat",
+    )
+    axis.set_ylim(scores.shape[0] - 0.5, -0.5)
     for i in range(len(genes)):
         for j in range(len(labels)):
             axis.text(
@@ -468,8 +511,57 @@ def plot_evolutionary_heatmap(directory: Path, **settings) -> str:
         ["<0.001", "<0.01", "<0.1", "<0.2", f"<{threshold}", f">{threshold}"]
     )
     fig.tight_layout()
-    fig.savefig(
-        directory / (settings.get("prefix", "sRNA") + "_conservation_heatmap.pdf")
-    )
+    if legend.solids is not None:
+        legend.solids.set_rasterized(False)
+    for extension in ("pdf", "svg"):
+        fig.savefig(
+            directory
+            / (settings.get("prefix", "sRNA") + "_conservation_heatmap." + extension)
+        )
     plt.close(fig)
     return ""
+
+
+def plot_functional_enrichment(jsonfile, prefix):
+    """Render DAVID memberships using the same colors as the interactive report."""
+    import json
+    from matplotlib.patches import Rectangle, Patch
+
+    data = json.loads(Path(jsonfile).read_text())
+    if not data:
+        raise ValueError("No enrichment memberships to plot")
+    features = list(dict.fromkeys(item["feature"] for item in data))
+    genes = list(dict.fromkeys(item["source"] for item in data))
+    plt = _pyplot()
+    fig, axis = plt.subplots(
+        figsize=(max(6, len(features) * 0.6), max(3, len(genes) * 0.35))
+    )
+    for item in data:
+        axis.add_patch(
+            Rectangle(
+                (item["fNum"] - 1, item["sNum"] - 1),
+                1,
+                1,
+                facecolor=item["color"],
+                edgecolor="white",
+                linewidth=0.5,
+            )
+        )
+    axis.set_xlim(0, len(features))
+    axis.set_ylim(len(genes), 0)
+    axis.set_xticks(
+        np.arange(len(features)) + 0.5, features, rotation=55, ha="right", fontsize=7
+    )
+    axis.set_yticks(np.arange(len(genes)) + 0.5, genes, fontsize=8)
+    handles = []
+    for group in data[0]["group"].split(";"):
+        index, score, color = group.split(":")
+        handles.append(
+            Patch(facecolor=color, label=f"Cluster {index}: enrichment score {score}")
+        )
+    axis.legend(handles=handles, loc="upper left", bbox_to_anchor=(1.01, 1), fontsize=7)
+    axis.set_title("Functional enrichment")
+    fig.tight_layout()
+    for extension in ("pdf", "svg"):
+        fig.savefig(str(prefix) + "." + extension, bbox_inches="tight")
+    plt.close(fig)

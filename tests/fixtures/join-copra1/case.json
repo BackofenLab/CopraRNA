@@ -1,0 +1,11 @@
+{
+  "language": "r",
+  "script": "coprarna_aux/join_pvals_coprarna1.R",
+  "args": [
+    "opt_tags.clustered"
+  ],
+  "outputs": [
+    "CopraRNA1_with_pvsample.csv"
+  ],
+  "rng_seed": 731
+}

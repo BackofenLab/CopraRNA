@@ -1,11 +1,10 @@
 # `add_pval_to_csv_evdfit.R` migration mapping
 
-Status: **pending**.
+Status: **ported**.
 
-Planned counterpart: `coprarna.energy.add_energy_pvalues`.
+Python counterpart: `coprarna.energy.add_energy_pvalues`.
 
-This module/function has **not been implemented**. The legacy source remains
-the implementation for this stage. It is not called by the new Python package.
+Command: `coprarna helper fit-energy`.
 
 Regression fixtures: `fit-energy-pvalues`.
 

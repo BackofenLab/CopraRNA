@@ -153,3 +153,25 @@ each checked in 5utr, 3utr and cds modes (51 exact-output comparisons).
 CI found that Git omits the archive-README fixture's empty input directory. Added
 an explicit `.gitkeep` and updated the fixture builder so clean checkouts retain
 that input directory. This changes only test fixture transport, not runtime logic.
+
+## Continuation: completing issue 1
+
+The GEV simplex fit, CopraRNA1 seeded missing-value sampling and CopraRNA2 subset
+joining are now implemented in `energy.py`, `numerics.py` and `combination.py`.
+`rcompat.py` preserves table formatting and writes native R-data archives through
+a pure Python serializer. New independently captured 120-cluster/four-organism
+fixtures exercise full and missing homolog sets. All 73 statistical/helper oracle
+and Python parity checks pass, including byte-exact CopraRNA1 and all CopraRNA2
+result files. Matching the nonlinear fits required preserving R's reciprocal
+scaling in LINPACK QR and the empirical-CDF multiplication order.
+
+New legacy defect: `join_pvals_coprarna1.R` reads `h$intensities`, but histogram
+objects expose `density`. The absent member yields NULL and an error score of
+zero for every candidate rho. The rewrite preserves this behavior and still
+consumes the same random draws; a fix belongs in the separate bug-fix branch.
+
+The full native orchestration and reporting modules are under integration test.
+A synthetic offline three-genome fixture uses the supported imported-cluster
+path. The installed DomClust 1.2.8 ignores trailing options after its positional
+files, so the original invocation produces list output instead of the requested
+table. This invocation defect is reserved for the bug-fix branch.

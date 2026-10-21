@@ -29,12 +29,19 @@ def capture(case: Path, directory: Path) -> dict[str, bytes]:
     env = dict(os.environ, LC_ALL="C", TZ="UTC")
     # This fixes traversal variability only; Perl does not guarantee insertion order.
     env.update(PERL_HASH_SEED="0", PERL_PERTURB_KEYS="0")
+    source = ROOT / spec["script"]
+    if "rng_seed" in spec:
+        wrapper = directory / "oracle-seeded.R"
+        wrapper.write_text(
+            f"set.seed({int(spec['rng_seed'])});source({json.dumps(str(source))})\n"
+        )
+        source = wrapper
     result = subprocess.run(
-        [executable, str(ROOT / spec["script"]), *spec["args"]],
+        [executable, str(source), *spec["args"]],
         cwd=directory,
         env=env,
         capture_output=True,
-        timeout=60,
+        timeout=spec.get("timeout", 60),
     )
     if result.returncode:
         raise RuntimeError(result.stderr.decode(errors="replace"))

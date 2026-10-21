@@ -4,6 +4,8 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from . import (
+    energy,
+    combination,
     annotation,
     exports,
     fasta,
@@ -114,6 +116,25 @@ HELPERS = {
     ),
 }
 
+HELPERS.update(
+    {
+        "fit-energy": Helper(
+            "add_pval_to_csv_evdfit.R", "coprarna.energy.add_energy_pvalues", ()
+        ),
+        "join-copra1": Helper(
+            "join_pvals_coprarna1.R",
+            "coprarna.combination.join_copra1",
+            ("clustered-table",),
+        ),
+        "join-copra2": Helper(
+            "join_pvals_coprarna2.R",
+            "coprarna.combination.join_copra2",
+            ("organism",),
+            True,
+        ),
+    }
+)
+
 
 def resolve(name: str) -> str:
     if name in HELPERS:
@@ -126,7 +147,7 @@ def resolve(name: str) -> str:
     )
 
 
-def run_helper(name: str, args: list[str], directory: Path) -> str:
+def run_helper(name: str, args: list[str], directory: Path, *, seed=None) -> str:
     name = resolve(name)
     spec = HELPERS[name]
     expected = len(spec.arguments)
@@ -185,4 +206,10 @@ def run_helper(name: str, args: list[str], directory: Path) -> str:
         return exports.specific_targets(directory)
     if name == "archive-readme":
         return resources.archive_readme()
+    if name == "fit-energy":
+        return energy.add_energy_pvalues(directory)
+    if name == "join-copra1":
+        return combination.join_copra1(path(0), directory, seed)
+    if name == "join-copra2":
+        return combination.join_copra2(args[0], directory, *args[1:])
     raise AssertionError(f"Undispatched registered helper: {name}")

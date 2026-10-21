@@ -28,9 +28,10 @@
   },
   {
     "legacy": "coprarna_aux/add_pval_to_csv_evdfit.R",
-    "status": "pending",
-    "planned_target": "coprarna.energy.add_energy_pvalues",
-    "oracle_fixtures": [
+    "status": "ported",
+    "target": "coprarna.energy.add_energy_pvalues",
+    "command": "coprarna helper fit-energy",
+    "fixtures": [
       "fit-energy-pvalues"
     ]
   },
@@ -185,15 +186,21 @@
   },
   {
     "legacy": "coprarna_aux/join_pvals_coprarna1.R",
-    "status": "pending",
-    "planned_target": "coprarna.combination.join_copra1",
-    "oracle_fixtures": []
+    "status": "ported",
+    "target": "coprarna.combination.join_copra1",
+    "command": "coprarna helper join-copra1",
+    "fixtures": [
+      "join-copra1"
+    ]
   },
   {
     "legacy": "coprarna_aux/join_pvals_coprarna2.R",
-    "status": "pending",
-    "planned_target": "coprarna.combination.join_copra2",
-    "oracle_fixtures": []
+    "status": "ported",
+    "target": "coprarna.combination.join_copra2",
+    "command": "coprarna helper join-copra2",
+    "fixtures": [
+      "join-copra2"
+    ]
   },
   {
     "legacy": "coprarna_aux/make_enrichment_table_from_py_output.pl",

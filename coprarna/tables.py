@@ -52,7 +52,12 @@ def disentangle(directory: Path) -> str:
         for line in path.read_text().splitlines()[1:]:
             tag = line.split(";")[0]
             if tag in optimal:
-                suboptimal[tag] = line  # The last suboptimal row wins in Perl.
+                from .compatibility import legacy_enabled
+
+                if legacy_enabled():
+                    suboptimal[tag] = line
+                else:
+                    suboptimal.setdefault(tag, line)
             else:
                 optimal[tag] = line
         for suffix, rows in [("opt", optimal), ("subopt", suboptimal)]:

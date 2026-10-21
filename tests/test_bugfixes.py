@@ -69,3 +69,22 @@ def test_protein_mapping_uses_basename_for_absolute_input(tmp_path):
     assert extract_proteins(path, "abcd\tNC_000001\n") == ">abcd:tag0\nMAA\n"
     with legacy_behavior():
         assert extract_proteins(path, "abcd\tNC_000001\n") == ">:tag0\nMAA\n"
+
+
+def test_suboptimal_keeps_second_best_energy_in_sorted_input(tmp_path):
+    from coprarna.tables import disentangle
+
+    (tmp_path / "sample.fa.intarna.sorted.csv").write_text(
+        "id;E\nx;-10\nx;-9\nx;-8\ny;-5\ny;-4\n"
+    )
+    disentangle(tmp_path)
+    assert (tmp_path / "sample_subopt.intarna.csv").read_text().splitlines()[1:] == [
+        "x;-9",
+        "y;-4",
+    ]
+    with legacy_behavior():
+        disentangle(tmp_path)
+    assert (tmp_path / "sample_subopt.intarna.csv").read_text().splitlines()[1:] == [
+        "x;-8",
+        "y;-4",
+    ]

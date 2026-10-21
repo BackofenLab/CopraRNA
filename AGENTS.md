@@ -172,8 +172,8 @@ consumes the same random draws; a fix belongs in the separate bug-fix branch.
 
 The full native orchestration and reporting modules are under integration test.
 A synthetic offline three-genome fixture uses the supported imported-cluster
-path. The installed DomClust 1.2.8 ignores trailing options after its positional
-files, so the original invocation produces list output instead of the requested
+path. The installed DomClust 1.2.8 no longer implements the advertised `-o5` table
+mode, so the original invocation produces list output instead of the requested
 table. This invocation defect is reserved for the bug-fix branch.
 
 ### Complete workflow and reporting validation
@@ -236,10 +236,17 @@ regressions while each correction gets its own test and commit.
 7. Score CopraRNA1 candidate correlations using histogram density; the
    legacy nonexistent intensities property made every candidate score zero.
 
-8. Place DomClust options before positional inputs so 1.2.8 honors table mode.
+8. Put DomClust options before positional inputs. Native integration then
+   established that option ordering alone does not restore its obsolete mode 5;
+   the supported mode-9 conversion below completes this fix.
 
 9. Render lowercase cds plots with nucleotide coordinates instead of rejecting
    the CLI's valid region spelling.
 
 10. Clamp plots to available prediction rows, including fewer than 15, so the
     default topcount no longer indexes beyond a short result set.
+CI portability audit: exact nonlinear fits depend on BLAS reduction order. Pin
+NumPy/SciPy and the validated Haswell/Zen AVX2 kernel instead of weakening the
+byte-comparison tests. Linux AVX2 imports select this kernel before NumPy loads;
+CI sets it explicitly because tests can import NumPy before CopraRNA. Other
+BLAS/CPU configurations remain outside the certified parity environment.

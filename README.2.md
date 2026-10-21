@@ -74,7 +74,7 @@ retains intermediate files. `--websrv` adds the webserver interaction table;
 `--enrich N` requests functional enrichment of the first N predictions.
 
 This rewrite branch preserves documented legacy defects, including DomClust's
-trailing-option invocation and failures when plotting lowercase cds or fewer
+obsolete table-output mode and failures when plotting lowercase cds or fewer
 than the requested predictions. An existing `cluster.tab` uses the original
 supported imported-cluster path. Corrections are delivered separately on the
 stacked bug-fix branch. See `AGENTS.md` for the exact compatibility decisions.
@@ -153,3 +153,10 @@ identifies its Python function, command and regression coverage. Regenerate thes
 with `python tools/update_migration_inventory.py`. `AGENTS.md` records architecture,
 validation and deferred defects. The original [README.md](README.md) retains
 biological background and citations. The project remains MIT licensed.
+
+The nonlinear fit's finite differences amplify BLAS rounding differences. The
+validated Linux x86-64/AVX2 runtime pins NumPy 2.4.3, SciPy 1.17.1 and OpenBLAS's
+Haswell reduction kernels (also used on Zen). CopraRNA selects this kernel before
+NumPy loads when AVX2 is available. If importing NumPy first, launch with
+`OPENBLAS_CORETYPE=Haswell`; an explicit caller setting is respected. Exact byte
+parity on other BLAS/CPU configurations is not certified.

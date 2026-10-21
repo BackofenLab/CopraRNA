@@ -230,3 +230,5 @@ regressions while each correction gets its own test and commit.
 4. Resolve organism codes using the GenBank basename for absolute paths.
 
 5. Keep the first (second-best overall) suboptimal row in energy-sorted input.
+
+6. Escape feature/source strings when emitting enrichment JSON.

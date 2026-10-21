@@ -1,5 +1,6 @@
 """Legacy enrichment exports; text formatting is intentionally preserved."""
 
+import json
 import math
 from pathlib import Path
 import re
@@ -27,6 +28,14 @@ def _color(groups: int, group: int, pvalue: float, solid: bool) -> str:
     return "#" + "".join(f"{int(value * 255):02x}" for value in values)
 
 
+def _json_string(value):
+    from .compatibility import legacy_enabled
+
+    return (
+        '"' + value + '"' if legacy_enabled() else json.dumps(value, ensure_ascii=False)
+    )
+
+
 def heatmap_json(path: Path) -> str:
     lines = path.read_text().splitlines()
     groups, parameters, header = (line.split("\t") for line in lines[:3])
@@ -47,9 +56,9 @@ def heatmap_json(path: Path) -> str:
             output.append(
                 "{"
                 + f'"flagF":{int(row_number == 1)},"fMax":{len(parameters) - 2},'
-                + f'"fNum":{feature_index},"feature":"{header[i]}",'
+                + f'"fNum":{feature_index},"feature":{_json_string(header[i])},'
                 + f'"flagS":{int(feature_index == 1)},"sMax":{parameters[0]},'
-                + f'"sNum":{row_number},"source":"{row[4]}",'
+                + f'"sNum":{row_number},"source":{_json_string(row[4])},'
                 + f'"color":"{color}","value":{row[1]},"group":"{group_text}"'
                 + "}"
             )

@@ -88,3 +88,19 @@ def test_suboptimal_keeps_second_best_energy_in_sorted_input(tmp_path):
         "x;-8",
         "y;-4",
     ]
+
+
+def test_heatmap_json_escapes_quotes_and_backslashes(tmp_path):
+    import json
+    from coprarna.exports import heatmap_json
+
+    source = next((FIXTURES / "heatmap-json/input").iterdir())
+    rows = [line.split("\t") for line in source.read_text().splitlines()]
+    rows[2][11] = 'term "quoted" \\ slash'
+    rows[3][4] = 'gene "quoted" \\ slash'
+    path = tmp_path / "enrichment.txt"
+    path.write_text("\n".join("\t".join(row) for row in rows) + "\n")
+    heatmap_json(path)
+    data = json.loads((tmp_path / "copraRNA.json").read_text())
+    assert data[0]["feature"] == rows[2][11]
+    assert data[0]["source"] == rows[3][4]

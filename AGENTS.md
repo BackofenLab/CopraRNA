@@ -250,3 +250,7 @@ NumPy/SciPy and the validated Haswell/Zen AVX2 kernel instead of weakening the
 byte-comparison tests. Linux AVX2 imports select this kernel before NumPy loads;
 CI sets it explicitly because tests can import NumPy before CopraRNA. Other
 BLAS/CPU configurations remain outside the certified parity environment.
+
+11. Use supported DomClust mode 9 and convert memberships into the required
+    per-organism table, retaining domains and missing organisms. Source inspection
+    confirms mode 5's table implementation is obsolete in 1.2.8.

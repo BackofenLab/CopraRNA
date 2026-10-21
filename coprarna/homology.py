@@ -32,16 +32,60 @@ def affiliations():
     return result
 
 
+def domclust_table(members, gene_table):
+    """Convert supported mode-9 membership output to the removed mode-5 table."""
+    species = list(
+        dict.fromkeys(
+            line.split()[0] for line in gene_table.splitlines() if line.strip()
+        )
+    )
+    entries = []
+    domains = {}
+    for line in members.splitlines():
+        fields = line.split()
+        if len(fields) < 4 or ":" not in fields[1]:
+            continue
+        cluster, identifier = fields[:2]
+        domain = fields[2] if len(fields) >= 5 else "1"
+        entries.append((cluster, identifier, domain))
+        domains.setdefault(identifier, set()).add(domain)
+    clusters = {}
+    for cluster, identifier, domain in entries:
+        organism = identifier.split(":", 1)[0]
+        tag = identifier + (f"({domain})" if len(domains[identifier]) > 1 else "")
+        clusters.setdefault(cluster, {}).setdefault(organism, []).append(tag)
+    if not clusters:
+        raise ValueError("DomClust returned no homology clusters")
+    return (
+        "#id\t"
+        + "\t".join(species)
+        + "\n"
+        + "".join(
+            str(i)
+            + "\t"
+            + "\t".join(" ".join(cells.get(org, [])) for org in species)
+            + "\n"
+            for i, cells in enumerate(clusters.values(), 1)
+        )
+    )
+
+
 def run_domclust(directory):
     from .compatibility import legacy_enabled
 
-    flags = ["-HO", "-S", "-c60", "-p0.5", "-V0.6", "-C80", "-o5"]
+    flags = ["-HO", "-S", "-c60", "-p0.5", "-V0.6", "-C80"]
     files = ["all.fas.hom", "all.fas.gene"]
-    command(
-        ["domclust", *(files + flags if legacy_enabled() else flags + files)],
-        directory,
-        output="cluster.tab",
-    )
+    if legacy_enabled():
+        command(["domclust", *files, *flags, "-o5"], directory, output="cluster.tab")
+    else:
+        command(
+            ["domclust", *flags, "-o9", *files], directory, output="cluster.members"
+        )
+        table = domclust_table(
+            (directory / "cluster.members").read_text(),
+            (directory / "all.fas.gene").read_text(),
+        )
+        (directory / "cluster.tab").write_text(table)
 
 
 def run_homology(

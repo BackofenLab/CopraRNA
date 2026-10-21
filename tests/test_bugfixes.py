@@ -126,6 +126,8 @@ def test_domclust_options_precede_positional_files(tmp_path, monkeypatch):
     monkeypatch.setattr(
         homology, "command", lambda args, directory, output: calls.append(args)
     )
+    (tmp_path / "all.fas.gene").write_text("aaaa tag 80\n")
+    (tmp_path / "cluster.members").write_text("1|1 aaaa:tag 1 1 80\n")
     homology.run_domclust(tmp_path)
     assert calls[-1] == [
         "domclust",
@@ -135,7 +137,7 @@ def test_domclust_options_precede_positional_files(tmp_path, monkeypatch):
         "-p0.5",
         "-V0.6",
         "-C80",
-        "-o5",
+        "-o9",
         "all.fas.hom",
         "all.fas.gene",
     ]
@@ -211,3 +213,14 @@ def test_short_predictions_plot_without_padding_or_out_of_bounds(tmp_path, monke
     )
     with legacy_behavior(), pytest.raises(ValueError, match="beyond available"):
         plots.plot_interaction_regions(table, 200, tmp_path)
+
+
+def test_domclust_supported_output_preserves_clusters_domains_and_missing_species():
+    from coprarna.homology import domclust_table
+
+    genes = "aaaa first 80\nbbbb second 90\ncccc third 70\n"
+    members = "1|1 aaaa:first 1 1 40\n1|1 bbbb:second 1 1 90\n2|2 aaaa:first 2 41 80\n2|2 cccc:third 1 1 70\n"
+    assert (
+        domclust_table(members, genes)
+        == "#id\taaaa\tbbbb\tcccc\n1\taaaa:first(1)\tbbbb:second\t\n2\taaaa:first(2)\t\tcccc:third\n"
+    )

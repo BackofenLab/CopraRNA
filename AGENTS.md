@@ -210,5 +210,5 @@ Final rewrite validation: **120 tests passed** in 140.78 seconds in the fresh
 Python 3.12 pinned environment, with both legacy runtimes, all 17 reference
 genomes, both complete native workflows and Chromium enabled. Source/wheel builds
 succeeded; the installed console entry point and inventory work from outside the
-repository. A further audited legacy edge defect is retained: the R peak finder
-reads beyond the last position when a peak reaches the right boundary.
+repository. The R peak finder safely ends at the right boundary because
+R evaluates `NA & FALSE` as FALSE; the Python bounds check preserves that behavior.

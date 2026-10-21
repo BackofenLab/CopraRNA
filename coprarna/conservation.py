@@ -47,8 +47,6 @@ def peak_find(values, threshold=0.4):
         start -= 1
     while end < len(values) and values[end] >= cutoff:
         end += 1
-    if end == len(values):
-        raise ValueError("Legacy R peak finder reads beyond the right boundary")
     return [start + 2, end]
 
 

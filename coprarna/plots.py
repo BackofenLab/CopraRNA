@@ -158,9 +158,11 @@ def plot_interaction_regions(path: Path, number: int, directory: Path) -> str:
             "Legacy region plotting does not initialize center for lowercase cds"
         )
     header, rows = read_table(path)
-    if len(rows) < max(15, number):
+    if len(rows) < max(15, number) and legacy_enabled():
         raise ValueError("Legacy region plotting indexes beyond available predictions")
-    number = max(15, number)
+    number = max(15, number) if legacy_enabled() else min(max(15, number), len(rows))
+    if number == 0:
+        raise ValueError("No predictions available to plot")
     data, labels, orgs = region_plot_data(path, number, directory)
     plt = _pyplot()
     up = int(opt["nt upstream"])
@@ -245,7 +247,8 @@ def plot_interaction_regions(path: Path, number: int, directory: Path) -> str:
 
     for feature in ("mRNA", "sRNA"):
         prefix = feature + "_regions_with_histogram"
-        fig = draw(feature, data[feature][: 15 * size], 0, 15, True)
+        shown = min(15, number)
+        fig = draw(feature, data[feature][: shown * size], 0, shown, True)
         for extension in ("pdf", "ps", "png"):
             fig.savefig(directory / f"{prefix}.{extension}", dpi=300)
         if int(opt["websrv"]):

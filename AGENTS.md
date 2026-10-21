@@ -240,3 +240,6 @@ regressions while each correction gets its own test and commit.
 
 9. Render lowercase cds plots with nucleotide coordinates instead of rejecting
    the CLI's valid region spelling.
+
+10. Clamp plots to available prediction rows, including fewer than 15, so the
+    default topcount no longer indexes beyond a short result set.

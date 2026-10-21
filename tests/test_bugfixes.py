@@ -199,3 +199,15 @@ def test_lowercase_cds_region_plot_renders(tmp_path, monkeypatch):
         .read_bytes()
         .startswith(b"\x89PNG")
     )
+
+
+def test_short_predictions_plot_without_padding_or_out_of_bounds(tmp_path, monkeypatch):
+    import pytest
+
+    plots, table = _plot_fixture(tmp_path, monkeypatch, "5utr", 3)
+    assert plots.plot_interaction_regions(table, 200, tmp_path) == ""
+    assert (
+        (tmp_path / "mRNA_regions_extended_list.pdf").read_bytes().startswith(b"%PDF")
+    )
+    with legacy_behavior(), pytest.raises(ValueError, match="beyond available"):
+        plots.plot_interaction_regions(table, 200, tmp_path)

@@ -398,3 +398,31 @@ def test_web_export_cannot_reintroduce_a_filtered_perfect_helix(tmp_path, monkey
     report = (tmp_path / "coprarna_websrv_table.csv").read_text().splitlines()
     assert len(report) == 2
     assert report[1].split(",")[5] == "-12.00"
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "custom.csv",
+        "custom.Rdata",
+        "evo_alignments/input.fa",
+        "target_alignments/input.fa",
+    ],
+)
+def test_cleanup_preserves_all_inputs_and_parameter_snapshot(tmp_path, name):
+    original = tmp_path / name
+    original.parent.mkdir(parents=True, exist_ok=True)
+    original.write_text(">NC_000001\nACGU\n")
+    parameter = tmp_path / "annotations.cfg"
+    parameter.write_text("tAccW=80\n")
+    snapshot = tmp_path / "IntaRNA_parameters.txt"
+    snapshot.write_bytes(parameter.read_bytes())
+    (tmp_path / "CopraRNA_option_file.txt").write_text(
+        f"sRNA FASTA:{original}\nintarna parameter file:{parameter}\n"
+    )
+    disposable = tmp_path / "generated_anno.txt"
+    disposable.touch()
+    pipeline._cleanup(tmp_path, pipeline.Config(enrich=1))
+    assert original.read_text() == ">NC_000001\nACGU\n"
+    assert parameter.read_text() == snapshot.read_text() == "tAccW=80\n"
+    assert not disposable.exists()

@@ -96,11 +96,18 @@ def _validate(path, config, directory):
 def _cleanup(directory, config):
     """Organize generated reports and remove disposable intermediates.
 
-    Every deletion/move guards the resolved original FASTA path. Compressed
-    genomes stay in their cache; raw gzip predictions and filter audits are kept."""
+    Guard original FASTA/parameter paths and the saved native-settings snapshot.
+    Keep a generated subtree if it contains a protected input. Compressed genomes
+    stay in their cache; raw gzip predictions and filter audits are retained."""
     from .runtime import options
 
-    options_original = options(directory)["sRNA FASTA"]
+    configured = options(directory)
+    protected = {
+        Path(configured["sRNA FASTA"]).resolve(),
+        (directory / "IntaRNA_parameters.txt").resolve(),
+    }
+    if configured.get("intarna parameter file"):
+        protected.add(Path(configured["intarna parameter file"]).resolve())
     patterns = (
         ["ncrna_aligned.fa"]
         + ["cluster.members"]
@@ -139,13 +146,13 @@ def _cleanup(directory, config):
         patterns += ["*IntaRNA1_ui*", "*top_targets*"]
     for pattern in patterns:
         for path in directory.glob(pattern):
-            if path.is_file() and path.resolve() != Path(options_original).resolve():
+            if path.is_file() and path.resolve() not in protected:
                 path.unlink()
     for path in directory.iterdir():
         if (
             re.fullmatch(r".*fa\d+", path.name)
             and path.is_file()
-            and path.resolve() != Path(options_original).resolve()
+            and path.resolve() not in protected
         ):
             path.unlink()
     for subdir, patterns in [
@@ -157,10 +164,7 @@ def _cleanup(directory, config):
         (directory / subdir).mkdir(exist_ok=True)
         for pattern in patterns:
             for path in directory.glob(pattern):
-                if (
-                    path.is_file()
-                    and path.resolve() != Path(options_original).resolve()
-                ):
+                if path.is_file() and path.resolve() not in protected:
                     shutil.move(str(path), directory / subdir / path.name)
     if config.enrich:
         (directory / "Enrichment").mkdir(exist_ok=True)
@@ -172,10 +176,11 @@ def _cleanup(directory, config):
             "aux_table.csv",
         ):
             for path in directory.glob(pattern):
-                shutil.move(str(path), directory / "Enrichment" / path.name)
+                if path.resolve() not in protected:
+                    shutil.move(str(path), directory / "Enrichment" / path.name)
     (directory / "all_predictions").mkdir(exist_ok=True)
     for path in directory.glob("*.csv"):
-        if path.resolve() != Path(options_original).resolve() and path.name not in (
+        if path.resolve() not in protected and path.name not in (
             "CopraRNA_result.csv",
             "CopraRNA_result_all.csv",
             "coprarna_websrv_table.csv",
@@ -183,9 +188,11 @@ def _cleanup(directory, config):
             shutil.move(str(path), directory / "all_predictions" / path.name)
     (directory / "Rdata").mkdir(exist_ok=True)
     for path in directory.glob("*.Rdata"):
-        shutil.move(str(path), directory / "Rdata" / path.name)
+        if path.resolve() not in protected:
+            shutil.move(str(path), directory / "Rdata" / path.name)
     for name in ("target_alignments",):
-        shutil.rmtree(directory / name, ignore_errors=True)
+        if not any(directory / name in path.parents for path in protected):
+            shutil.rmtree(directory / name, ignore_errors=True)
     evo = directory / "evo_alignments"
     if evo.exists():
         with zipfile.ZipFile(
@@ -194,7 +201,8 @@ def _cleanup(directory, config):
             for path in evo.rglob("*"):
                 if path.is_file():
                     archive.write(path, path.relative_to(directory))
-        shutil.rmtree(evo)
+        if not any(evo in path.parents for path in protected):
+            shutil.rmtree(evo)
     warning = directory / "weights.warning"
     if warning.exists() and warning.stat().st_size == 0:
         warning.unlink()

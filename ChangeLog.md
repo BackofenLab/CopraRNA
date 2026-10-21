@@ -108,7 +108,9 @@ Following [Martin Raden's review](https://github.com/BackofenLab/CopraRNA/pull/3
   cached paths directly rather than copying genomes into every job directory.
 - Preserve the original input FASTA in place and byte unchanged. Normalize into a
   separate working file, protect the original during cleanup, and reject names
-  that collide with required generated files before work starts.
+  that collide with required generated files before work starts. Cleanup also
+  protects supplied parameter files and their reproducibility snapshot, including
+  when enrichment cleanup uses broad intermediate-file patterns.
 - Remove stacking-only helices spanning at least 90% of either RNA's effective
   sequence/accessibility-window length **before** fitting energy distributions.
   Apply the same filter to native web exports before selecting a retained

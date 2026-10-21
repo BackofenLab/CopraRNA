@@ -45,3 +45,30 @@ from helper-level checks. Preserve all tracked original source bytes.
 ## Legacy defects and compatibility decisions
 
 Pending audit. Fixes require separate tests and a separate branch/PR.
+
+### Phase 1 audit
+
+No upstream tests, sRNA examples or expected result directories are tracked.
+The 17 compressed GenBank reference genomes can support real-data parser tests.
+`tests/support/legacy.py` captures stdout and declared files in isolated temporary
+working directories; golden fixtures are versioned. Oracle runtimes may be supplied
+through `COPRARNA_LEGACY_PERL` and `COPRARNA_LEGACY_RSCRIPT`.
+The local reusable oracle runtimes are Perl 5.26.2 (virsorter1 environment) and
+R 4.4.3 (virfinder environment). These differ from the historical versions in the
+README; numerical parity claims must specify the oracle actually used.
+
+The migration environment is specified separately from the legacy comparison
+environment. Conda specifications are compatibility targets, not solved locks.
+
+Known parity hazards discovered during audit:
+- Perl hash iteration randomizes output row order in several helpers. Fixtures
+  mark those files explicitly; comparisons sort only the unordered body rows.
+- `join_pvals_coprarna1.R` samples missing values without a fixed random seed.
+- `remove_clusters_under_percantage.R` renames column 35 rather than 36.
+- `parse_region_from_genome.pl` always extracts sequence from the first GenBank
+  record, including when iterating features of later records.
+
+Phase 1 validation: 28 captured legacy fixture cases plus the original-source
+checksum test pass (29 tests). All golden files were captured before porting.
+The fixtures include a full GEV fit oracle; this does not establish Python GEV
+parity. Oracle commands used the explicit runtime paths described above.

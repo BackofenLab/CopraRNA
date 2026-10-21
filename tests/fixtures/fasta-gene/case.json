@@ -1,0 +1,11 @@
+{
+  "script": "coprarna_aux/fasta2genefile.pl",
+  "language": "perl",
+  "args": [
+    "input.fa"
+  ],
+  "outputs": [
+    "input.fa.gene",
+    "input.fa.tit"
+  ]
+}

@@ -1,0 +1,56 @@
+LOCUS       NC_000001               1100 bp    DNA     circular UNK 01-JAN-1980
+DEFINITION  Synthetic regression genome.
+ACCESSION   NC_000001
+VERSION     NC_000001.1
+KEYWORDS    .
+SOURCE      .
+  ORGANISM  Synthetic organism
+            .
+FEATURES             Location/Qualifiers
+     gene            1..90
+                     /locus_tag="LT0"
+                     /gene="g(0),name"
+                     /db_xref="GeneID:100"
+     gene            351..510
+                     /locus_tag="LT1"
+                     /gene="g(1),name"
+                     /db_xref="GeneID:101"
+     gene            complement(531..730)
+                     /locus_tag="LT2"
+                     /gene="g(2),name"
+                     /db_xref="GeneID:102"
+     gene            complement(1011..1100)
+                     /locus_tag="LT3"
+                     /gene="g(3),name"
+                     /db_xref="GeneID:103"
+     gene            join(851..890,911..960)
+                     /locus_tag="LT4"
+                     /gene="g(4),name"
+                     /db_xref="GeneID:104"
+     gene            complement(join(111..140,161..190))
+                     /locus_tag="LT5"
+                     /gene="g(5),name"
+                     /db_xref="GeneID:105"
+     rRNA            complement(761..800)
+                     /product="16S ribosomal RNA"
+ORIGIN
+        1 acatcggcct atagataacc gtccaactgt cgaaatcaaa ttttttcttg ctgctcacac
+       61 acgtccggta ccataggtcc gcacttgtga taggcgccac ccacctcaac ttctgaagac
+      121 aatccagttc cgccgggccg aacttaccgt tacttgggtc cccgcgtata tatcgtatac
+      181 tattgatctc aaatatattg tcactctcaa cccatttagc ttgcggtgag gaagtccgta
+      241 gacttgatcg gggacgcctc ggttccataa aaccctgact agtccttaaa atgattaaat
+      301 cttcgaaagc cataacaatc tgcgtacacc aaactttgaa aacagcggcg ccgatcgtcg
+      361 cgcggtcggc aacctgaagt aaccgatctc taaataagaa agaaaattgg aatgcagccc
+      421 cgaggcagac gtgaacgcgc tcggtcccac gtctgtcatc cgacaggtca ttcgggagcc
+      481 actcgcatgc ccttaatcgt tctggtaagg ataagagagg ttctaggtcg tatggcgtac
+      541 ttaaccgtca tttcccgtat taggaggagc gcggccggat atataaaagc gaagtaaata
+      601 gtcgagcagt catcggctta cggcacatct ctctacaccg gcaagatgga tgcttaacgc
+      661 cgttaataga ccgggtgagg ccgtgattca aagcggatgg aggcggcatt actagtcgac
+      721 agttctgtga cgcgacctct aaaagcagtc taacacgagt ggatgtgtgc acatgcttcc
+      781 actggatgta cacgccgcag cagtcttgtc cattcaaggc tagccacttt agtcaatgtt
+      841 ttgagcccgg ccgtgattgt cgaaatgcgt gtcgaccgat taagcgtagc aatttgggcc
+      901 tgtgaccttt ctaaatcgcg gttagttggg gtttgcggga tctgcttgta cgataggcct
+      961 gagtcagccg ctgttcgtct tagaagacta gcgcttctaa agggcaataa tcgtggtcac
+     1021 aaatcagtct actgaattga cgcggtaggt caagttgcat atggtacgaa cctgtcatat
+     1081 cgaggtaacg cttgacgacg
+//

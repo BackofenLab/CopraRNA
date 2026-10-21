@@ -1,0 +1,9 @@
+{
+  "script": "coprarna_aux/cluster_intarna_csv.pl",
+  "language": "perl",
+  "args": [],
+  "outputs": [],
+  "modules": [
+    "List::MoreUtils"
+  ]
+}

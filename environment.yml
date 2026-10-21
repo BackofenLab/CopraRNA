@@ -1,0 +1,25 @@
+# Python migration runtime; legacy interpreters are isolated in environment-legacy.yml.
+name: coprarna-python3
+channels:
+  - conda-forge
+  - bioconda
+  - nodefaults
+dependencies:
+  - python=3.11
+  - pip=24.3
+  - setuptools=75.6
+  - biopython=1.84
+  - numpy=1.26.4
+  - scipy=1.14.1
+  - pandas=2.2.3
+  - matplotlib=3.9.2
+  - pytest=8.3.4
+  - python-build=1.2.2
+  - intarna=2.2.0
+  - viennarna=2.4.14
+  - blast-legacy=2.2.26
+  - domclust=1.2.8
+  - emboss=6.6.0
+  - embassy-phylip=3.69.650
+  - mafft=7.310
+  - clustalo=1.2.3

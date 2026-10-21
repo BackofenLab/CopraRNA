@@ -1,0 +1,8 @@
+{
+  "script": "coprarna_aux/make_enrichment_table_from_py_output.pl",
+  "language": "perl",
+  "args": [
+    "report.txt"
+  ],
+  "outputs": []
+}

@@ -402,7 +402,7 @@ def main():
             + ";gene1;101;annotation\n",
         },
     )
-    case("archive-readme", "print_archive_README.pl")
+    (case("archive-readme", "print_archive_README.pl") / ".gitkeep").touch()
     case(
         "adjust-pvalues-precision",
         "calc_padj.R",

@@ -149,3 +149,7 @@ Final complete validation: **97 tests passed** in the fresh pinned Python 3.11 /
 Biopython 1.84 environment with both legacy oracle runtimes and
 `COPRARNA_REFERENCE_TESTS=1` enabled. This includes all 17 bundled real genomes,
 each checked in 5utr, 3utr and cds modes (51 exact-output comparisons).
+
+CI found that Git omits the archive-README fixture's empty input directory. Added
+an explicit `.gitkeep` and updated the fixture builder so clean checkouts retain
+that input directory. This changes only test fixture transport, not runtime logic.

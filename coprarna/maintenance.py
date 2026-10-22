@@ -8,6 +8,12 @@ from urllib.request import urlopen
 
 
 class PerlRandom:
+    """Reproduce Perl's 48-bit drand48 stream for organism-code maintenance.
+
+    An explicit seed makes the generated four-letter codes reproducible. This
+    maintenance RNG is independent of the retired prediction-mode sampling code.
+    """
+
     def __init__(self, seed=None):
         if seed is None:
             seed = random.SystemRandom().getrandbits(32)
@@ -19,6 +25,11 @@ class PerlRandom:
 
 
 def write_availability_header(directory: Path, header: str, now=None) -> str:
+    """Publish the availability table with a dated packaged header.
+
+    Read CopraRNA_available_organisms.tmp, write the final .txt file, then remove
+    the temporary input. An injected datetime supports deterministic oracle tests.
+    """
     now = now or datetime.now().astimezone()
     date = now.strftime("%a %b %e %H:%M:%S %Z %Y")
     text = (
@@ -36,6 +47,12 @@ def write_availability_header(directory: Path, header: str, now=None) -> str:
 def build_organism_mapping(
     directory: Path, report: Path | None = None, seed=None, now=None
 ) -> str:
+    """Build organism-code and availability tables from the NCBI genome report.
+
+    Use a supplied report or download it, assign unique four-letter codes and
+    strip RefSeq version suffixes. Preserve report order/deduplication conventions.
+    Write both tables in directory; seed and now permit reproducible maintenance.
+    """
     if report is None:
         report = directory / "prokaryotes.txt"
         with urlopen(

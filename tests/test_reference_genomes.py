@@ -27,7 +27,10 @@ def test_reference_genome_regions(archive, tmp_path):
     genome = tmp_path / archive.name.removesuffix(".bz2")
     genome.write_bytes(bz2.decompress(archive.read_bytes()))
     for region in ("5utr", "3utr", "cds"):
-        actual = parse_regions(genome, 200, 100, region).encode()
+        from coprarna.compatibility import legacy_behavior
+
+        with legacy_behavior():
+            actual = parse_regions(genome, 200, 100, region).encode()
         result = subprocess.run(
             [
                 perl,

@@ -9,11 +9,13 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 from coprarna.helpers import HELPERS  # noqa: E402
 
+RETIRED = {"join_pvals_coprarna1.R", "remove_clusters_under_percantage.R"}
+
 COVERAGE = {
-    "CopraRNA2.pl": "tests/test_workflow.py::test_full_native_prediction_matches_legacy",
-    "homology_intaRNA.pl": "tests/test_workflow.py::test_full_native_prediction_matches_legacy",
-    "prepare_intarna_out.pl": "tests/test_workflow.py::test_full_native_prediction_matches_legacy",
-    "combine_clusters.pl": "tests/test_workflow.py::test_full_native_prediction_matches_legacy",
+    "CopraRNA2.pl": "tests/test_workflow.py::test_corrected_workflow_builds_clusters_preserves_inputs_and_exports_vectors",
+    "homology_intaRNA.pl": "tests/test_workflow.py::test_corrected_workflow_builds_clusters_preserves_inputs_and_exports_vectors",
+    "prepare_intarna_out.pl": "tests/test_workflow.py::test_corrected_workflow_builds_clusters_preserves_inputs_and_exports_vectors",
+    "combine_clusters.pl": "tests/test_workflow.py::test_corrected_workflow_builds_clusters_preserves_inputs_and_exports_vectors",
     "parallelize_target_alignments.pl": "tests/test_workflow.py::test_parallel_alignment_inputs_and_outputs_match",
     "copraRNA2_position_script_for_evo_precalculated_alignments_w_ooi.R": "tests/test_workflow.py::test_conservation_and_all_203_jalview_exports_match",
     "script_R_plots_8.R": "tests/test_workflow.py::test_plot_geometry_and_heatmap_match_original_R",
@@ -54,6 +56,12 @@ def main():
             if helper.arguments:
                 body += " followed by `" + " ".join(helper.arguments) + "`"
             body += "."
+        elif basename in RETIRED:
+            entry.update(
+                status="retired",
+                reason="Not part of the CopraRNA2-only runtime requested in review",
+            )
+            body = "Retired from the Python implementation under the CopraRNA2-only scope. No runtime counterpart is provided."
         else:
             raise ValueError(f"Unmapped original source: {source}")
         mapping = ROOT / (source + ".md")
@@ -66,7 +74,7 @@ def main():
                 + ", ".join(f"`{name}`" for name in fixtures)
                 + "."
                 if fixtures
-                else "No regression fixtures have been captured for this stage yet."
+                else "Retired from the current runtime; no regression fixture is retained."
             )
             + "\n\nThe original source is retained unchanged. See `AGENTS.md` and `README.2.md`\nfor validation scope and compatibility decisions.\n"
         )

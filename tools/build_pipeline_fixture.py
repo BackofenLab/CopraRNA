@@ -1,6 +1,7 @@
 """Build a small offline multi-genome job for full legacy/Python comparison."""
 
 from pathlib import Path
+import gzip
 import random
 from Bio import SeqIO
 from Bio.Seq import Seq
@@ -70,7 +71,8 @@ def build(directory):
                 qualifiers={"product": ["16S ribosomal RNA"]},
             )
         )
-        SeqIO.write(record, directory / (accession + ".gb"), "genbank")
+        with gzip.open(directory / (accession + ".gb.gz"), "wt") as stream:
+            SeqIO.write(record, stream, "genbank")
         q = list(query)
         if j:
             q[j * 3] = rng.choice("ACGT")

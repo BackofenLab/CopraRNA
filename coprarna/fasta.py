@@ -7,6 +7,11 @@ from Bio import SeqIO
 
 
 def format_fasta(path: Path) -> str:
+    """Return normalized FASTA using record IDs and unwrapped sequences.
+
+    Discard descriptions and sequence whitespace while preserving record order
+    and base case. Read the source without changing or moving it.
+    """
     output = []
     for record in SeqIO.parse(path, "fasta"):
         sequence = re.sub(r"\s", "", str(record.seq))
@@ -15,6 +20,11 @@ def format_fasta(path: Path) -> str:
 
 
 def fasta_to_genefile(path: Path) -> str:
+    """Write DomClust .gene and .tit metadata beside a protein FASTA.
+
+    Interpret identifiers as organism:gene. Preserve input order and emit protein
+    lengths plus descriptions in the retained text format; return empty stdout.
+    """
     genes, titles = [], []
     name, title, sequence = "", "", ""
 

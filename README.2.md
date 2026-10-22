@@ -1,16 +1,16 @@
-# CopraRNA with Python 3
+# CopraRNA2 with Python 3
 
-The complete parallel rewrite requested in [issue 1](https://github.com/BackofenLab/CopraRNA/issues/1)
-provides Python counterparts for all 41 legacy scripts. It includes comparative
-prediction, CopraRNA1 and CopraRNA2 statistics, consensus mapping, plots, enrichment,
-webserver tables, organism-list maintenance and independent prediction batches.
-The original sources, README, reference genomes and organism tables remain
-unchanged; a checksum test verifies every original tracked file.
+The Python implementation for [issue 1](https://github.com/BackofenLab/CopraRNA/issues/1)
+provides comparative target prediction, consensus mapping, scientific plots,
+functional enrichment, webserver exports and independent prediction batches.
+It implements 39 active legacy-script counterparts. Two obsolete scripts are
+retired in the migration inventory. Original tracked sources, reference genomes
+and organism tables remain unchanged and are verified by checksums.
 
 ## Installation
 
-Python 3.11 or newer is required. Create the full scientific environment, then
-install the package:
+Python 3.11 or newer is required. The complete Linux scientific environment uses
+Python 3.12:
 
 ```bash
 conda env create -f environment.yml
@@ -19,98 +19,150 @@ python -m pip install --no-deps .
 coprarna --version
 ```
 
-`environment.yml` pins the validated Linux runtime: Biopython, NumPy, SciPy,
-pandas, Matplotlib, rdata, suds-community, IntaRNA 3.4.1, ViennaRNA 2.7.2,
-BLAST legacy 2.2.26, DomClust 1.2.8, EMBOSS 6.6.0, PHYLIP fneighbor,
-MAFFT 7.526, Clustal Omega 1.2.4 and Ghostscript. This specification was installed
-in a fresh environment. It prepares dependency metadata for a future Bioconda
-recipe; it is not a cross-platform lockfile or a published Bioconda package.
+The reviewed dependency versions are listed below. IntaRNA must be version 3 or
+newer, including standalone native prediction helpers. Production controllers run Python and native scientific tools; they do
+not invoke the original scripts. Native packages can have transitive interpreter
+dependencies. The environment specification is not a cross-platform lockfile or
+a published Bioconda package.
 
-For Python-only helper/statistical use, `python -m pip install .` is sufficient.
-Install native scientific executables separately for complete predictions.
-`COPRARNA_TOOL_PATH` can prepend their directory to subprocess PATH. Production
-controllers do not execute the legacy Perl, R, Bash, Python or JavaScript scripts.
-Native tools can have their own transitive interpreter dependencies.
+| Dependency | Reviewed version / interface |
+| --- | --- |
+| [IntaRNA](https://github.com/BackofenLab/IntaRNA/releases) / ViennaRNA | 3.4.1 / 2.7.2; `IntaRNAsTar`, native gzip CSV |
+| [BLAST+](https://bioconda.github.io/recipes/blast/README.html) | 2.17.0; `makeblastdb` and `blastp`, tabular format 6 |
+| DomClust | 1.2.8; supported membership output mode 9 |
+| EMBOSS / embassy-phylip | 6.6.0 / 3.69.660; `distmat` and `fneighbor` |
+| MAFFT / Clustal Omega | 7.526 / 1.2.4 |
+| [Biopython](https://pypi.org/project/biopython/) | 1.88; package also supports 1.84 on Python 3.11 |
+| [NumPy](https://pypi.org/project/numpy/) / [SciPy](https://pypi.org/project/scipy/) | 2.5.4 / 1.18.1 on Python >=3.12; 2.4.3 / 1.17.1 on Python 3.11 |
+| [pandas](https://pypi.org/project/pandas/) / [Matplotlib](https://pypi.org/project/matplotlib/) | 3.0.6 / 3.11.2 |
+| rdata / suds-community | 1.1.0 / 1.2.0 |
 
-For enrichment graphics, install Chromium once:
+Matplotlib is installed from its PyPI wheel to avoid an ICU conflict between the
+current conda rendering dependencies and IntaRNA. PDF/SVG reporting uses Python;
+no browser or external format converter is needed for prediction reports.
+For Python-only helpers, `python -m pip install .` is sufficient. Install native
+executables separately for complete predictions. `COPRARNA_TOOL_PATH` can prepend
+one or more tool directories to subprocess PATH.
 
-```bash
-python -m pip install '.[web]'
-python -m playwright install chromium --only-shell
-```
-
-DAVID enrichment requires a reachable compatible SOAP service and its legacy
-registered account. Requests preserve the original endpoint, category settings,
-background population and account. NCBI retrieval needs network access unless
-all required GenBank replicons already exist in the working directory. These
-services are tested with offline request doubles; current live service availability
-is not promised. The unchanged HTML reports retain their upstream web dependencies.
+DAVID enrichment requires a reachable compatible SOAP service and the registered
+account used by the original workflow. Offline tests check request contents;
+live service availability is not certified. The optional interactive HTML report
+loads its upstream JavaScript dependencies when opened in a browser.
 
 ## Predict targets
 
-Prepare at least three homologous sRNAs in FASTA. Each header must be an organism
-RefSeq accession present in the bundled availability table. Put this file in a
-separate job directory. Cached `<accession>.gb` files avoid NCBI downloads.
+Prepare at least three homologous sRNAs in FASTA. Each record ID must be an
+organism RefSeq accession in the bundled availability table. Use a separate job
+directory for each run. The original input FASTA stays at its original path,
+byte unchanged; a normalized working copy is stored under `FASTA/`. Input names
+that collide with required job outputs (including symlink aliases) are rejected
+before those outputs are written. Cleanup also checks report destinations so it
+cannot move a generated file over an input in a subfolder.
 
 ```bash
-coprarna run --workdir /data/job-a --srnaseq input_sRNA.fa --cores 8
-coprarna run --workdir /data/job-b --srnaseq input_sRNA.fa --nooi --cons 2
-coprarna run --workdir /data/job-c --srnaseq input_sRNA.fa --cop1 --seed 731
+coprarna run --workdir /data/job-a --srnaseq input_sRNA.fa --cores 8 \
+  --genome-db /data/coprarna-genomes
+coprarna run --workdir /data/job-b --srnaseq input_sRNA.fa --nooi --cons 2 \
+  --genome-db /data/coprarna-genomes
 coprarna run --help
 ```
 
-Options retain the legacy defaults and accept both `--name` and `-name` spellings:
-`ntup`, `ntdown`, `region` (5utr/3utr/cds), `rcsize`, `cores`, `winsize`,
-`maxbpdist`, `cop1`, `verbose`, `websrv`, `nooi`, `topcount`, `root`, `enrich`,
-`noclean`, `cons` and `ooifilt`. `--seed` makes CopraRNA1's missing-value sampling
-reproducible. An unspecified seed retains stochastic behavior.
+The shared genome directory stores `<accession>.gb.gz` files. Existing `.gbk.gz`
+and `.gbff.gz` files are accepted too. Jobs read these compressed files directly
+without making genome copies or decompressed files in their working directories.
+Downloads stream into gzip files and are published atomically after completion;
+per-accession locks prevent concurrent jobs from downloading the same genome.
+An existing compressed genome in the job directory is also accepted. A supplied
+plain `.gb` genome is preserved and streamed into the cache once. NCBI network
+access is needed only for missing replicons. `genome_paths.txt` records the paths
+used by a job. Without `--genome-db`, the cache defaults to `genomes/` in the job.
 
-The workflow retrieves/caches genomes, extracts proteins and target regions,
-builds homology clusters, computes IntaRNA interactions, estimates GEV p-values,
-weights organisms using 16S phylogeny, combines predictions and maps conservation.
-Outputs include `CopraRNA_result.csv`, `CopraRNA_result_all.csv`, evolutionary
-heatmaps, interaction-region plots and a Jalview alignment archive. `--noclean`
-retains intermediate files. `--websrv` adds the webserver interaction table;
-`--enrich N` requests functional enrichment of the first N predictions.
+### IntaRNA parameters
 
-This rewrite branch preserves documented legacy defects, including DomClust's
-obsolete table-output mode and failures when plotting lowercase cds or fewer
-than the requested predictions. An existing `cluster.tab` uses the original
-supported imported-cluster path. Corrections are delivered separately on the
-stacked bug-fix branch. See `AGENTS.md` for the exact compatibility decisions.
-Use fresh job directories: legacy append/overwrite behavior is preserved.
+Predictions use the **IntaRNAsTar** personality. Supply native IntaRNA settings
+through either a parameter file or its inline contents. These alternatives are
+mutually exclusive. A file uses IntaRNA's `longName=value` syntax, without `--`
+prefixes; see the [official parameter-file documentation](https://backofenlab.github.io/IntaRNA/).
+For example, `intarna.cfg` might contain:
 
-## Independent batches
+```ini
+tAccW=80
+tAccL=60
+seedBP=6
+```
+
+```bash
+coprarna run --workdir /data/job-a --intarna-params intarna.cfg
+coprarna run --workdir /data/job-b \
+  --intarna-params-text $'tAccW=80\ntAccL=60\nseedBP=6\n'
+```
+
+File paths are relative to the job directory unless absolute. Every prediction
+invocation, including the web export, receives the parameter file. Inline text is
+materialized temporarily and removed even if prediction fails. A persistent
+`IntaRNA_parameters.txt` snapshot records the settings. CopraRNA sets its input,
+output format and required CSV columns. Both prediction paths request two
+interactions unless the parameter file supplies `outNumber`; the web table selects
+one retained interaction per target after applying the same artifact filter. Native prediction settings are not duplicated as
+CopraRNA command-line options.
+
+Before fitting energy distributions, CopraRNA removes stacking-only, gap-free
+helices spanning at least 90% of either RNA's effective length. Effective length
+is the smaller of the sequence length and a positive accessibility window
+(`tAccW` or `qAccW`); window zero uses the full sequence length. These interactions
+can be artificial self hits. Each organism's `.filter.json` records the removed
+IDs and coordinates, counts and a cache signature. The GEV fit requires at least
+three retained optimal interactions and nonconstant energies; otherwise the run
+stops with a diagnostic. Cached predictions are reused only when the input,
+parameters, IntaRNA version and filter policy match.
+
+Other options include `ntup`, `ntdown`, `region` (5utr/3utr/cds), `cores`,
+`verbose`, `websrv`, `nooi`, `topcount`, `root`, `enrich`, `noclean`, `cons` and
+`ooifilt`. Their defaults and accepted spellings are shown by `run --help`.
+
+### Outputs
+
+`CopraRNA_result.csv` contains the top predictions; `CopraRNA_result_all.csv`
+contains all comparative results. Gzipped IntaRNA intermediates are written
+natively and retained under `IntaRNA/` after cleanup. Genomes remain compressed
+in the selected cache. `--noclean` keeps the other intermediate files.
+
+`Phylogeny/compatible.treefile.svg` renders the 16S tree with Biopython and
+Matplotlib. Region plots, conservation heatmaps and functional enrichment plots
+are exported as **PDF and SVG**. Extended lists retain every page in the PDF and
+stack all pages in one SVG canvas. Heatmaps use vector cells. `--websrv` adds the
+webserver table and SVG thumbnails. `evo_alignments.zip` contains Jalview exports.
+`--enrich N` requests DAVID functional enrichment of the first N predictions.
+
+## Independent batches and helpers
 
 Place `jobs.json` beside separate, non-nested job directories:
 
 ```json
 [
-  {"id":"sample-a","helper":"predict","args":["input_sRNA.fa"],"workdir":"sample-a","options":{"cores":4,"topcount":100}},
-  {"id":"sample-b","helper":"predict","args":["input_sRNA.fa"],"workdir":"sample-b","options":{"cores":4,"cons":2}}
+  {"id":"sample-a","helper":"predict","args":["input_sRNA.fa"],"workdir":"sample-a","options":{"cores":4,"genome_db":"/data/coprarna-genomes"}},
+  {"id":"sample-b","helper":"predict","args":["input_sRNA.fa"],"workdir":"sample-b","options":{"cores":4,"cons":2,"intarna_params_text":"tAccW=80\ntAccL=60\n"}}
 ]
 ```
 
 ```bash
 coprarna batch jobs.json --jobs 2 > batch-results.json
+coprarna helper --workdir /data/job-a genome-regions NC_000913.gb.gz 200 100 5utr
+coprarna helpers
+coprarna status
 ```
 
-`--jobs` limits concurrent jobs; each prediction's `cores` limits its native
-parallel work. Preflight validates the complete manifest before starting any job.
-Results retain manifest order, and independent jobs continue after another fails.
+`--jobs` limits concurrent jobs; each prediction's `cores` limits native parallel
+work. Preflight validates the complete manifest before starting jobs. Results
+retain manifest order, and independent jobs continue after another fails.
 Diagnostics go to stderr. Exit codes are 0 for success, 1 for failed batch jobs,
 2 for invalid invocation/setup, and 130 for interruption.
 
-Helpers can also be batched by replacing `predict` with a helper name, supplying
-its positional arguments and omitting `options`. Optional `stdout` writes a
-new file inside that job directory. `coprarna helpers` lists arguments; original
-script basenames are accepted as aliases.
-
-```bash
-coprarna helper --workdir /data/job-a genome-regions NC_000913.gb 200 100 5utr
-coprarna helper --workdir /data/job-a fit-energy
-coprarna status
-```
+Helpers accept original script basenames as aliases. Helper-only `--legacy`
+reproduces captured defects for retained historical algorithm comparisons;
+complete prediction always uses the corrected implementation. The optional
+`rasterize` helper can export browser content after installing `.[web]` and
+Chromium with `python -m playwright install chromium --only-shell`.
 
 ## Validation and development
 
@@ -118,45 +170,39 @@ coprarna status
 python -m pip install '.[test,build]'
 python -m pytest -q
 python -m build
-```
-
-The committed small fixtures contain independently captured legacy stdout and
-files. Python comparisons use exact bytes, except explicitly unordered Perl hash
-bodies. The 120-cluster statistical fixtures cover missing homologs, R's seeded
-random stream, GEV fitting, nonlinear correlation fits and rank aggregation.
-
-`tests/fixtures/workflow/legacy.tar.gz` captures an offline three-genome,
-30-cluster synthetic run using the imported-cluster path. Tests compare all
-prediction CSVs, target alignments, 203 Jalview files, plot coordinates, heatmap
-scores/labels/order and persisted matrices. R-data comparisons check object
-contents, dimensions and names because serialization compression/header bytes
-can differ. Matplotlib and Chromium replace R graphics and PhantomJS; rendered
-PDF/PS/PNG bytes and typography are not identical across renderers. PDF and
-PostScript support multiple pages. External-tool versions are recorded in fixture
-provenance; historical R 3.2.2 and IntaRNA 2.2.0 numerical equivalence is not certified.
-
-```bash
 COPRARNA_PIPELINE_TESTS=1 python -m pytest tests/test_workflow.py
 COPRARNA_BROWSER_TESTS=1 python -m pytest tests/test_adapters.py
 COPRARNA_REFERENCE_TESTS=1 python -m pytest tests/test_reference_genomes.py
 ```
 
-The last command additionally requires the old Perl dependencies and compares
-all three regions for each of the 17 bundled real genomes. To rerun original
-oracles, set `COPRARNA_LEGACY_PERL` and `COPRARNA_LEGACY_RSCRIPT` to suitable
-interpreters. Small fixtures were captured with Perl 5.26.2/R 4.4.3; full-workflow
-and report fixtures used Perl 5.32.1/R 4.5.2. `environment-legacy.yml` records the
-historical requirements separately and is not the production environment.
+Retained helper/statistical fixtures use independently captured legacy output.
+Byte comparisons cover GEV fitting, nonlinear correlation fits, rank aggregation
+and table transformations. Workflow fixtures check consensus matrices, 203
+Jalview exports, alignment inputs and plot geometry. R-data files are compared
+semantically. New native integrations check the sTar workflow, BLAST+, file/inline
+parameter equivalence, compressed shared genomes, input preservation and vector
+outputs. Default whole-workflow predictions intentionally change with the reviewed
+personality and filtering; they are not asserted equal to historical predictions.
 
-Each legacy script has an adjacent `.md` mapping. `coprarna/migration.json`
-identifies its Python function, command and regression coverage. Regenerate these
-with `python tools/update_migration_inventory.py`. `AGENTS.md` records architecture,
-validation and deferred defects. The original [README.md](README.md) retains
-biological background and citations. The project remains MIT licensed.
+To rerun original helper oracles, set `COPRARNA_LEGACY_PERL` and
+`COPRARNA_LEGACY_RSCRIPT` to suitable interpreters. `environment-legacy.yml`
+records optional Perl requirements; `environment-legacy-r.yml` records the R
+requirements and archived RobustRankAggreg installation command. Separate
+environments avoid incompatible XML/ICU dependencies in old BioPerl and current
+R. The archived pure-R package works with R 4.4.3 without the obsolete ABI pins
+of the old conda binary. The reference-genome test
+compares all three regions on all 17 bundled genomes and needs the Perl modules.
+The updated archive README has its own expectation because its output changed.
 
-The nonlinear fit's finite differences amplify BLAS rounding differences. The
-validated Linux x86-64/AVX2 runtime pins NumPy 2.4.3, SciPy 1.17.1 and OpenBLAS's
-Haswell reduction kernels (also used on Zen). CopraRNA selects this kernel before
-NumPy loads when AVX2 is available. If importing NumPy first, launch with
-`OPENBLAS_CORETYPE=Haswell`; an explicit caller setting is respected. Exact byte
-parity on other BLAS/CPU configurations is not certified.
+Nonlinear fitting amplifies BLAS rounding differences. Validated Linux
+x86-64/AVX2 runs use OpenBLAS's Haswell reduction kernels. CopraRNA selects this
+kernel before NumPy loads when AVX2 is available. If importing NumPy first,
+launch with `OPENBLAS_CORETYPE=Haswell`; an explicit caller setting is respected.
+Exact byte parity on other BLAS/CPU configurations is not certified.
+
+[ChangeLog.md](ChangeLog.md) records the rewrite architecture and each release-facing
+fix and behavior change. Each original script has an adjacent `.md` mapping. `coprarna/migration.json`
+records active functions, commands, tests and retired entries. Regenerate it with
+`python tools/update_migration_inventory.py`. `AGENTS.md` records architecture and
+validation policy. The original [README.md](README.md) retains biological
+background and citations. The project remains MIT licensed.

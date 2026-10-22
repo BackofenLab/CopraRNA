@@ -5,7 +5,7 @@
     "target": "coprarna.pipeline.run_prediction",
     "command": "coprarna helper predict",
     "fixtures": [
-      "tests/test_workflow.py::test_full_native_prediction_matches_legacy"
+      "tests/test_workflow.py::test_corrected_workflow_builds_clusters_preserves_inputs_and_exports_vectors"
     ]
   },
   {
@@ -98,7 +98,7 @@
     "target": "coprarna.combination.combine_clusters",
     "command": "coprarna helper combine-clusters",
     "fixtures": [
-      "tests/test_workflow.py::test_full_native_prediction_matches_legacy"
+      "tests/test_workflow.py::test_corrected_workflow_builds_clusters_preserves_inputs_and_exports_vectors"
     ]
   },
   {
@@ -189,7 +189,6 @@
     "target": "coprarna.tables.add_sampled_count",
     "command": "coprarna helper sampled-count",
     "fixtures": [
-      "sampled-0",
       "sampled-1"
     ]
   },
@@ -208,17 +207,13 @@
     "target": "coprarna.homology.run_homology",
     "command": "coprarna helper homology",
     "fixtures": [
-      "tests/test_workflow.py::test_full_native_prediction_matches_legacy"
+      "tests/test_workflow.py::test_corrected_workflow_builds_clusters_preserves_inputs_and_exports_vectors"
     ]
   },
   {
     "legacy": "coprarna_aux/join_pvals_coprarna1.R",
-    "status": "ported",
-    "target": "coprarna.combination.join_copra1",
-    "command": "coprarna helper join-copra1",
-    "fixtures": [
-      "join-copra1"
-    ]
+    "status": "retired",
+    "reason": "Not part of the CopraRNA2-only runtime requested in review"
   },
   {
     "legacy": "coprarna_aux/join_pvals_coprarna2.R",
@@ -303,7 +298,7 @@
     "target": "coprarna.intarna.prepare_predictions",
     "command": "coprarna helper prepare-intarna",
     "fixtures": [
-      "tests/test_workflow.py::test_full_native_prediction_matches_legacy"
+      "tests/test_workflow.py::test_corrected_workflow_builds_clusters_preserves_inputs_and_exports_vectors"
     ]
   },
   {
@@ -335,13 +330,8 @@
   },
   {
     "legacy": "coprarna_aux/remove_clusters_under_percantage.R",
-    "status": "ported",
-    "target": "coprarna.statistics.filter_clusters",
-    "command": "coprarna helper filter-clusters",
-    "fixtures": [
-      "filter-clusters",
-      "filter-clusters-numeric"
-    ]
+    "status": "retired",
+    "reason": "Not part of the CopraRNA2-only runtime requested in review"
   },
   {
     "legacy": "coprarna_aux/script_R_plots_8.R",

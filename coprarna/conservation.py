@@ -1,12 +1,13 @@
 """Interaction-coordinate mapping, consensus peaks and Jalview annotations."""
 
 from pathlib import Path
+from .io import paths
 import gzip
 from importlib.resources import files
 import numpy as np
 from Bio import SeqIO
 
-from .runtime import command
+from .runtime import command, options
 from .rcompat import read_table, write_table, save_rdata, format_matrix_column
 from .rcompat import RNamedList
 from .statistics import r_number
@@ -38,6 +39,7 @@ COORDS = [8, 9, 25, 26, 10, 11, 27, 28]
 
 
 def peak_find(values, threshold=0.4):
+    """Return inclusive 1-based boundaries around all maximum-height positions."""
     values = np.asarray(values)
     maximum = max(values)
     cutoff = maximum * threshold
@@ -51,6 +53,9 @@ def peak_find(values, threshold=0.4):
 
 
 def peak_find_two(values, threshold=0.4, second_threshold=0.9):
+    """Find the main consensus peak and an eligible near-height secondary peak.
+
+    Retain the original asymmetric end threshold for reproducible peak boundaries."""
     first = peak_find(values, threshold)
     second = []
     outside = np.r_[values[: first[0] - 1], values[first[1] :]]
@@ -73,6 +78,7 @@ def peak_find_two(values, threshold=0.4, second_threshold=0.9):
 
 
 def overlap(peak, start, end, threshold=0.6):
+    """Test overlap relative to the shorter inclusive interval; an absent peak fails."""
     if not peak:
         return False
     left, right = min(start, end), max(start, end)
@@ -81,6 +87,7 @@ def overlap(peak, start, end, threshold=0.6):
 
 
 def organism_names(organisms, directory):
+    """Derive compact plot labels from a local or packaged availability table."""
     path = directory / "CopraRNA_available_organisms.txt"
     text = (
         path.read_text()
@@ -132,6 +139,11 @@ def _boolean(value):
 
 
 def compute_conservation(ooi: str, directory: Path) -> str:
+    """Map interactions to target/sRNA alignments and persist consensus annotations.
+
+    Combine optimal and suboptimal coordinates, locate weighted consensus peaks,
+    and write R-compatible matrices plus Jalview annotation/alignment files. The
+    OOI selects organism-specific mappings; other outputs retain organism order."""
     command(
         [
             "mafft",
@@ -141,7 +153,7 @@ def compute_conservation(ooi: str, directory: Path) -> str:
             "--quiet",
             "--localpair",
             "--quiet",
-            "input_sRNA.fa",
+            options(directory).get("working sRNA FASTA", "input_sRNA.fa"),
         ],
         directory,
         output="aligned_sRNA.fa",
@@ -161,7 +173,7 @@ def compute_conservation(ooi: str, directory: Path) -> str:
     for row in opt_rows:
         optimal.setdefault(row[0].lower(), row)
     suboptimal = {}
-    for path in sorted(directory.glob("*_subopt.intarna.csv")):
+    for path in paths(directory, "*_subopt.intarna.csv"):
         _, data = read_table(path, sep=";")
         for row in data:
             suboptimal.setdefault(row[0].lower(), row)

@@ -1,15 +1,22 @@
 """GenBank helpers preserving the legacy coordinate and boundary conventions."""
 
 from pathlib import Path
+from itertools import chain
 import re
 
-from Bio import SeqIO
+from .io import genbank_records, accession
 
 # Perl's legacy transliteration complements only these four bases, not all IUPAC.
 _COMPLEMENT = str.maketrans("gatcGATC", "ctagCTAG")
 
 
 def _reverse_complement(sequence: str) -> str:
+    from .compatibility import legacy_enabled
+
+    if not legacy_enabled():
+        from Bio.Seq import Seq
+
+        return str(Seq(sequence).reverse_complement())
     return sequence[::-1].translate(_COMPLEMENT)
 
 
@@ -78,12 +85,23 @@ def get_region(
 
 
 def parse_regions(path: Path, up: int, down: int, region: str) -> str:
-    records = list(SeqIO.parse(path, "genbank"))
-    # Intentionally use the first sequence for features of every record, as Perl does.
-    source = str(records[0].seq)
-    circular = records[0].annotations.get("topology") == "circular"
+    """Extract each CDS target region from streamed GenBank records.
+
+    Coordinates follow the original 1-based inclusive flank conventions, with
+    strand, circular wrap and compound CDS handling. Corrected production uses
+    each record's own sequence; the helper oracle can reproduce the old defect."""
+    records = genbank_records(path)
+    first = next(records)
+    # The helper oracle alone reproduces Perl's first-record sequence defect.
+    source = str(first.seq)
+    circular = first.annotations.get("topology") == "circular"
     output = []
-    for record in records:
+    for record in chain([first], records):
+        from .compatibility import legacy_enabled
+
+        if not legacy_enabled():
+            source = str(record.seq)
+            circular = record.annotations.get("topology") == "circular"
         for feature in record.features:
             if feature.type != "CDS":
                 continue
@@ -147,8 +165,9 @@ def parse_regions(path: Path, up: int, down: int, region: str) -> str:
 
 
 def check_gene_cds(path: Path, display_name: str | None = None) -> str:
+    """Return a diagnostic when genes are annotated but no CDS features exist."""
     genes = cds = 0
-    for record in SeqIO.parse(path, "genbank"):
+    for record in genbank_records(path):
         genes += sum(f.type == "gene" for f in record.features)
         cds += sum(f.type == "CDS" for f in record.features)
     if cds == 0 and genes != 0:
@@ -160,14 +179,21 @@ def extract_proteins(
     path: Path, mapping_text: str, display_name: str | None = None
 ) -> str:
     # Matching is deliberately unanchored, and removes exactly three filename bytes.
-    accession = (display_name or str(path))[:-3]
+    """Return translated CDS FASTA with organism-code/locus-tag identifiers."""
+    from .compatibility import legacy_enabled
+
+    identifier = (
+        (display_name or str(path))[:-3]
+        if legacy_enabled()
+        else accession(display_name or path)
+    )
     code = ""
     for line in mapping_text.splitlines():
-        if re.search(accession, line):
+        if re.search(identifier, line):
             code = re.split(r"\s", line)[0]
             break
     output = []
-    for record in SeqIO.parse(path, "genbank"):
+    for record in genbank_records(path):
         for feature in record.features:
             q = feature.qualifiers
             if feature.type == "CDS" and "locus_tag" in q and "translation" in q:
@@ -176,13 +202,14 @@ def extract_proteins(
 
 
 def extract_16s(groups: list[str], directory: Path) -> str:
+    """Return one annotated 16S sequence per organism, searching replicons in order."""
     output = []
     for group in groups:
         filenames = group.split(",")
-        label = filenames[0][:-3]
+        label = accession(filenames[0])
         found = False
         for filename in filenames:
-            for record in SeqIO.parse(directory / filename, "genbank"):
+            for record in genbank_records(directory / filename):
                 for feature in record.features:
                     product = feature.qualifiers.get("product", [""])[0]
                     if feature.type == "rRNA" and re.search(

@@ -85,12 +85,14 @@ def test_ncbi_requests_first_hit_and_preserves_download_bytes(tmp_path):
     urls = []
 
     def opener(url):
-        urls.append(url)
+        urls.append(getattr(url, "full_url", url))
         return BytesIO(responses.pop(0))
 
-    path = tmp_path / "genome.gb"
+    path = tmp_path / "genome.gb.gz"
     ncbi.download_genbank("NC_000913", path, opener=opener)
-    assert path.read_bytes() == b"LOCUS cached\n//\n"
+    import gzip
+
+    assert gzip.decompress(path.read_bytes()) == b"LOCUS cached\n//\n"
     requests = [
         (urlparse(url).path.rsplit("/", 1)[-1], parse_qs(urlparse(url).query))
         for url in urls
@@ -117,7 +119,7 @@ def test_missing_ncbi_accession(tmp_path):
     with pytest.raises(ValueError, match="no genome"):
         ncbi.download_genbank(
             "absent",
-            tmp_path / "none.gb",
+            tmp_path / "none.gb.gz",
             opener=lambda _: BytesIO(b"<eSearchResult><IdList/></eSearchResult>"),
         )
 
@@ -143,10 +145,21 @@ def test_rasterize_real_chromium(tmp_path):
     html.write_text(
         '<html><body><h1>CopraRNA report</h1><svg width="50" height="50"><rect width="50" height="50" fill="green"/></svg></body></html>'
     )
-    for extension in ("png", "pdf"):
+    for extension in ("png", "pdf", "svg"):
         output = tmp_path / ("report." + extension)
         webserver.rasterize_heatmap(str(html), output)
-        assert output.stat().st_size > 500
+        if extension == "svg":
+            import xml.etree.ElementTree as ET
+
+            drawing = ET.parse(output).getroot()
+            assert any(node.tag.endswith("rect") for node in drawing.iter())
+            assert not any(node.tag.endswith("image") for node in drawing.iter())
+        else:
+            assert output.stat().st_size > 500
         assert output.read_bytes().startswith(
-            b"%PDF" if extension == "pdf" else b"\x89PNG"
+            b"%PDF"
+            if extension == "pdf"
+            else b"<?xml"
+            if extension == "svg"
+            else b"\x89PNG"
         )

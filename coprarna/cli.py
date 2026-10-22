@@ -23,6 +23,9 @@ def _parser():
     helper = commands.add_parser(
         "helper", help="Execute a validated port in one working directory"
     )
+    helper.add_argument(
+        "--legacy", action="store_true", help="Reproduce the frozen legacy defects"
+    )
     helper.add_argument("--workdir", type=Path, default=Path.cwd())
     helper.add_argument("name", help="Helper name or original script basename")
     helper.add_argument("args", nargs=argparse.REMAINDER)
@@ -41,10 +44,26 @@ def _parser():
     from .pipeline import Config
     from dataclasses import fields
 
+    parameter_input = run.add_mutually_exclusive_group()
+    parameter_input.add_argument(
+        "--intarna-params",
+        dest="intarna_params",
+        help="IntaRNA 3 parameter file (paths relative to the job directory)",
+    )
+    parameter_input.add_argument(
+        "--intarna-params-text",
+        dest="intarna_params_text",
+        help="Inline IntaRNA 3 parameter-file contents",
+    )
+    run.add_argument(
+        "--genome-db",
+        dest="genome_db",
+        help="Shared directory for compressed GenBank genomes",
+    )
     for field in fields(Config):
-        if field.name == "seed":
-            run.add_argument("--seed", type=int, default=None)
-        elif isinstance(field.default, bool):
+        if field.name in ("intarna_params", "intarna_params_text", "genome_db"):
+            continue
+        if isinstance(field.default, bool):
             run.add_argument("--" + field.name, "-" + field.name, action="store_true")
         else:
             run.add_argument(
@@ -59,6 +78,7 @@ def _parser():
 
 
 def _load_jobs(manifest: Path) -> list[dict]:
+    """Validate every batch job and its isolated output paths before any work starts."""
     raw = json.loads(manifest.read_text())
     if not isinstance(raw, list) or not raw:
         raise ValueError("Batch manifest must be a nonempty JSON list")
@@ -156,6 +176,7 @@ def _load_jobs(manifest: Path) -> list[dict]:
 
 
 def _run_job(job: dict) -> dict:
+    """Execute one validated job and return a serializable success/failure record."""
     record = {"id": job["id"], "helper": job["helper"]}
     stream = None
     try:
@@ -188,6 +209,7 @@ def _run_job(job: dict) -> dict:
 
 
 def main(argv=None) -> int:
+    """Dispatch CLI operations, preserving diagnostic streams and documented exit codes."""
     args = _parser().parse_args(argv)
     logging.basicConfig(
         level=logging.INFO, format="%(levelname)s: %(message)s", stream=sys.stderr
@@ -211,7 +233,9 @@ def main(argv=None) -> int:
         elif args.command == "status":
             print(files("coprarna").joinpath("migration.json").read_text(), end="")
         elif args.command == "helper":
-            sys.stdout.write(run_helper(args.name, args.args, args.workdir))
+            sys.stdout.write(
+                run_helper(args.name, args.args, args.workdir, legacy=args.legacy)
+            )
         elif args.command == "batch":
             if args.jobs < 1:
                 raise ValueError("--jobs must be at least 1")

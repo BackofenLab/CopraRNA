@@ -4,11 +4,13 @@ from collections import defaultdict
 import math
 from pathlib import Path
 import re
+from .io import paths, read_text, write_text
 
 INTARNA_HEADER = "id1;id2;seq1;seq2;subseq1;subseq2;subseqDP;subseqDB;start1;end1;start2;end2;hybridDP;hybridDB;E;ED1;ED2;Pu1;Pu2;E_init;E_loops;E_dangleL;E_dangleR;E_endL;E_endR;seedStart1;seedEnd1;seedStart2;seedEnd2;seedE;seedED1;seedED2;seedPu1;seedPu2;E_norm"
 
 
 def perl_split(pattern: str, value: str) -> list[str]:
+    """Split with a regular expression and discard trailing empty fields as Perl does."""
     parts = re.split(pattern, value)
     while parts and parts[-1] == "":
         parts.pop()
@@ -16,8 +18,14 @@ def perl_split(pattern: str, value: str) -> list[str]:
 
 
 def blast_to_homology(path: Path) -> str:
+    """Return DomClust similarities from BLAST tabular format 6, plain or gzip.
+
+    Canonicalize each protein pair, keep its best eligible e-value, and reproduce
+    the original identity-to-distance transform and score scaling. This is the
+    interface adapter shared by historical fixtures and the current BLAST+ caller.
+    """
     rows = []
-    for line in path.read_text().splitlines():
+    for line in read_text(path).splitlines():
         if line.startswith("#") or not line.strip():
             continue
         row = line.split()
@@ -47,26 +55,47 @@ def blast_to_homology(path: Path) -> str:
 
 
 def disentangle(directory: Path) -> str:
-    for path in sorted(directory.glob("*.fa.intarna.sorted.csv")):
+    """Write optimal/suboptimal IntaRNA tables from sorted native predictions.
+
+    Keep the best and second-best interaction per target in production; the helper
+    oracle alone retains the old repeated-overwrite defect. Read/write gzip
+    directly when the input is compressed and keep the required native schema.
+    """
+    for path in paths(directory, "*.fa.intarna.sorted.csv"):
         optimal, suboptimal = {}, {}
-        for line in path.read_text().splitlines()[1:]:
+        for line in read_text(path).splitlines()[1:]:
             tag = line.split(";")[0]
             if tag in optimal:
-                suboptimal[tag] = line  # The last suboptimal row wins in Perl.
+                from .compatibility import legacy_enabled
+
+                if legacy_enabled():
+                    suboptimal[tag] = line
+                else:
+                    suboptimal.setdefault(tag, line)
             else:
                 optimal[tag] = line
         for suffix, rows in [("opt", optimal), ("subopt", suboptimal)]:
-            name = path.name.split(".")[0] + f"_{suffix}.intarna.csv"
-            (directory / name).write_text(
-                INTARNA_HEADER + "\n" + "".join(line + "\n" for line in rows.values())
+            name = (
+                path.name.split(".")[0]
+                + f"_{suffix}.intarna.csv"
+                + (".gz" if path.suffix == ".gz" else "")
+            )
+            write_text(
+                directory / name,
+                INTARNA_HEADER + "\n" + "".join(line + "\n" for line in rows.values()),
             )
     return ""
 
 
 def cluster_predictions(directory: Path) -> str:
+    """Return the best eligible organism interaction for each protein-homology cluster.
+
+    Read cluster.tab and optimal p-value tables, remove DomClust domain suffixes
+    for locus lookup, and append the original cluster number to each selected row.
+    """
     lookup = {}
-    for path in sorted(directory.glob("*_opt.intarna.csv")):
-        for line in path.read_text().splitlines()[1:]:
+    for path in paths(directory, "*_opt.intarna.csv"):
+        for line in read_text(path).splitlines()[1:]:
             line = line.lower()
             lookup[line.split(";")[0]] = line
     output = [INTARNA_HEADER[1:] + ";p-value;clusternumber\n"]
@@ -87,16 +116,24 @@ def cluster_predictions(directory: Path) -> str:
     return "".join(output)
 
 
-def add_sampled_count(path: Path, cop2: bool) -> str:
-    lines = path.read_text().splitlines()
+def add_sampled_count(path: Path) -> str:
+    """Append the reserved Amount sampled report column, always zero for CopraRNA2.
+
+    Keep the table/frontend schema without retaining obsolete missing-value sampling.
+    """
+    lines = read_text(path).splitlines()
     output = [lines[0] + ",Amount sampled\n"]
     for line in lines[1:]:
-        count = 0 if cop2 else line.split(",")[:-2].count("")
+        count = 0
         output.append(f"{line},{count}\n")
     return "".join(output)
 
 
 def additional_homologs(path: Path, clusters: Path) -> str:
+    """Append same-organism homolog tags from cluster.tab to each annotated row.
+
+    Preserve first-seen order, suppress duplicates and omit the selected target.
+    """
     lookup = defaultdict(list)
     for line in clusters.read_text().splitlines():
         if line.startswith(("#", "running")):
@@ -110,7 +147,7 @@ def additional_homologs(path: Path, clusters: Path) -> str:
                     homologs.append(tag)
             for tag in homologs:
                 lookup[tag].extend(homologs)
-    lines = path.read_text().splitlines()
+    lines = read_text(path).splitlines()
     output = [lines[0] + ",Additional homologs\n"]
     for line in lines[1:]:
         fields = line.split(",")
@@ -127,7 +164,12 @@ def additional_homologs(path: Path, clusters: Path) -> str:
 
 
 def enrichment_report(path: Path) -> str:
-    lines = path.read_text().splitlines()
+    """Return a DAVID annotation-cluster table from the SOAP report text.
+
+    Parse named fields and scores, retain the original column order and strip
+    embedded quotes to match the committed service-adapter oracle.
+    """
+    lines = read_text(path).splitlines()
     header = "Category\tTerm\tCount\t%\tPvalue\tGenes\tList Total\tPop Hits\tPop Total\tFold Enrichment\tBonferroni\tBenjamini\tFDR\n"
     fields = [
         "categoryName",

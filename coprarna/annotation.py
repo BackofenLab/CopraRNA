@@ -3,10 +3,11 @@
 from pathlib import Path
 import re
 
-from Bio import SeqIO
+from .io import genbank_records, genome_paths, accession
 
 
 def _annotation(qualifiers):
+    """Prefer a non-hypothetical product, then note/function annotation."""
     product = qualifiers.get("product", [""])[0]
     if "product" in qualifiers and "hypothetical protein" not in product:
         return product
@@ -14,9 +15,10 @@ def _annotation(qualifiers):
 
 
 def annotate_intarna(directory: Path) -> str:
+    """Add gene names, GeneIDs and sanitized annotations from compressed genomes."""
     lookup = {}
-    for path in sorted(directory.glob("*gb")):
-        for record in SeqIO.parse(path, "genbank"):
+    for path in genome_paths(directory):
+        for record in genbank_records(path):
             for feature in record.features:
                 q = feature.qualifiers
                 if feature.type != "CDS" or "locus_tag" not in q:
@@ -45,14 +47,16 @@ def annotate_intarna(directory: Path) -> str:
 def annotate_raw(
     result: Path, clustered: Path, groups: list[str], directory: Path
 ) -> str:
+    """Expand cluster tags into organism columns with interaction and gene metadata.
+
+    Groups specify each organism's replicons, primary first. Keep the historical
+    field order and text sanitization because downstream tables parse these cells."""
     names, gids, columns, products = {}, {}, {}, {}
     header = ["p-value"]
     for col, group in enumerate(groups, 2):
-        match = re.search(r"(N[ZC]_.+?)\.gb", group.split(",")[0])
-        if match:
-            header.append(match[1])
+        header.append(accession(group.split(",")[0]))
         for filename in group.split(","):
-            record = next(SeqIO.parse(directory / filename, "genbank"))
+            record = next(genbank_records(directory / filename))
             for feature in record.features:
                 q = feature.qualifiers
                 ids = list(q.get("locus_tag", []))
@@ -78,7 +82,7 @@ def annotate_raw(
                 if tag != "N/A" and gid != "N/A" and "GeneID:" in gid:
                     gids[tag] = gid
     for filename in groups[0].split(","):
-        for record in SeqIO.parse(directory / filename, "genbank"):
+        for record in genbank_records(directory / filename):
             for feature in record.features:
                 q = feature.qualifiers
                 if feature.type == "CDS" and "locus_tag" in q:

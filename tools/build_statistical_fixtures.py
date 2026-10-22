@@ -62,12 +62,6 @@ for name, script, args, outputs in [
             "CopraRNA2_final_all_evo.csv",
         ],
     ),
-    (
-        "join-copra1",
-        "join_pvals_coprarna1.R",
-        ["opt_tags.clustered"],
-        ["CopraRNA1_with_pvsample.csv"],
-    ),
 ]:
     folder = ROOT / "tests/fixtures" / name
     (folder / "input").mkdir(parents=True, exist_ok=True)

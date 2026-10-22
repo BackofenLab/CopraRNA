@@ -25,6 +25,11 @@ def case(name, script, args=(), files=None, outputs=(), modules=(), unordered=()
         args=list(args),
         outputs=list(outputs),
     )
+    if name == "archive-readme":
+        spec["legacy_parity"] = False
+    if name == "sampled-1":
+        spec["legacy_args"] = list(args)
+        spec["args"] = list(args)[:1]
     if modules:
         spec["modules"] = list(modules)
     if unordered:
@@ -176,7 +181,7 @@ def main():
                 + branches,
             },
         )
-    for cop2 in ("0", "1"):
+    for cop2 in ("1",):
         case(
             "sampled-" + cop2,
             "get_amount_sampled_values_and_add_to_table.pl",
@@ -297,16 +302,6 @@ def main():
         {"opt_tags.clustered": clustered},
         ["CopraRNA2_prep.csv"],
     )
-    case(
-        "filter-clusters",
-        "remove_clusters_under_percantage.R",
-        files={
-            "CopraRNA_option_file.txt": option,
-            "16s_sequences.fa": ">one\nACGT\n>two\nACGT\n>three\nACGT\n",
-            "opt_tags.clustered": clustered,
-        },
-        outputs=["opt_tags.clustered_rcsize"],
-    )
     folder = case(
         "annotate-raw",
         "annotate_raw_output.pl",
@@ -411,21 +406,6 @@ def main():
             "pvalues": "p\n0.0001\n0.00015\n1e-15\n1e-5\n0.00000012345\n0.1234567891234567\n1\n0\n"
         },
         ["padj.csv"],
-    )
-    normalized = (
-        clustered.replace(";-12;", ";-12.0000;")
-        .replace(";0.2;", ";0.200000;")
-        .replace(";0.1;", ";1e-04;")
-    )
-    case(
-        "filter-clusters-numeric",
-        "remove_clusters_under_percantage.R",
-        files={
-            "CopraRNA_option_file.txt": option,
-            "16s_sequences.fa": ">one\nACGT\n>two\nACGT\n>three\nACGT\n",
-            "opt_tags.clustered": normalized,
-        },
-        outputs=["opt_tags.clustered_rcsize"],
     )
     folder = case(
         "fit-energy-pvalues",

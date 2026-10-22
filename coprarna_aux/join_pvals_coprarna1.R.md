@@ -1,12 +1,10 @@
 # `join_pvals_coprarna1.R` migration mapping
 
-Status: **ported**.
+Status: **retired**.
 
-Python counterpart: `coprarna.combination.join_copra1`.
+Retired from the Python implementation under the CopraRNA2-only scope. No runtime counterpart is provided.
 
-Command: `coprarna helper join-copra1` followed by `clustered-table`.
-
-Regression fixtures: `join-copra1`.
+Retired from the current runtime; no regression fixture is retained.
 
 The original source is retained unchanged. See `AGENTS.md` and `README.2.md`
 for validation scope and compatibility decisions.

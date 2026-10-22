@@ -30,7 +30,8 @@ def test_mapping_covers_every_original_script_and_discloses_pending_work():
             module, function = entry["target"].rsplit(".", 1)
             assert callable(getattr(importlib.import_module(module), function))
         else:
-            assert "not been implemented" in mapping
+            assert entry["status"] == "retired"
+            assert "Retired" in mapping
             assert "target" not in entry
 
 

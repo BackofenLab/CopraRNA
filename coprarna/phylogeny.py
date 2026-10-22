@@ -5,6 +5,11 @@ import re
 
 
 def transform_distance(path: Path) -> str:
+    """Return a PHYLIP-compatible matrix from the EMBOSS distmat report.
+
+    Restore the symmetric triangle, normalize accession case and preserve the
+    original zero filling, diagonal representation and numeric text formatting.
+    """
     matrix, organisms = {}, []
     width = None
     for index, line in enumerate(path.read_text().splitlines()[8:], 1):
@@ -31,6 +36,12 @@ def transform_distance(path: Path) -> str:
 
 
 def compute_weights(treefile: Path, neighborfile: Path) -> str:
+    """Return sorted organism weights from Newick and PHYLIP neighbor outputs.
+
+    Parse the retained branch/root conventions and recursively apportion subtree
+    lengths. Keep the original zero-length-tree fallback and seven-decimal output;
+    weights feed the comparative p-value combination and over-weight warnings.
+    """
     tree_length = 0.0
     for line in treefile.read_text().splitlines():
         for token in re.split(r"[:(),]", line):
@@ -95,3 +106,18 @@ def compute_weights(treefile: Path, neighborfile: Path) -> str:
             for _ in flipped.get(root, {}):
                 weights[leaf] = calculate(root, branch)
     return "".join(f"{leaf};{weights[leaf]:.7f}\n" for leaf in sorted(weights))
+
+
+def render_tree(treefile, output):
+    """Render branch-length Newick trees to SVG using Python dependencies only."""
+    from Bio import Phylo
+    from .plots import _pyplot
+
+    tree = Phylo.read(treefile, "newick")
+    plt = _pyplot()
+    fig, axis = plt.subplots(figsize=(7, max(2, len(tree.get_terminals()) * 0.35)))
+    Phylo.draw(tree, axes=axis, do_show=False, show_confidence=False)
+    axis.set_xlabel("Evolutionary distance")
+    fig.tight_layout()
+    fig.savefig(output, format="svg")
+    plt.close(fig)

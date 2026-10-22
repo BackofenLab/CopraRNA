@@ -6,52 +6,66 @@ import gzip
 from pathlib import Path
 import shutil
 import tempfile
+import threading
+import time
+from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
-import xml.etree.ElementTree as ET
 
 BASE = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/"
+_REQUEST_LOCK = threading.Lock()
+_LAST_REQUEST = 0.0
 
 
-def download_genbank(accession: str, path: Path, *, opener=None) -> str:
+def open_url(request):
+    """Open an NCBI request with a timeout, pacing and bounded transient retries.
+
+    Space requests across threads to respect the unauthenticated E-utilities limit
+    of three requests per second. Return a response for the caller to close; retry
+    connection errors, throttling and server failures at most twice. No files change.
+    """
+    global _LAST_REQUEST
+    for attempt in range(3):
+        with _REQUEST_LOCK:
+            time.sleep(max(0, 0.35 - (time.monotonic() - _LAST_REQUEST)))
+            _LAST_REQUEST = time.monotonic()
+        try:
+            return urlopen(request, timeout=60)
+        except (HTTPError, URLError, TimeoutError) as error:
+            if (
+                attempt == 2
+                or isinstance(error, HTTPError)
+                and error.code not in (429, 500, 502, 503, 504)
+            ):
+                raise
+            time.sleep(2**attempt)
+
+
+def download_genbank(accession: str, path: Path, *, opener=None, refresh=False) -> str:
     """Stream one NCBI GenBank accession into an atomically published gzip file.
 
-    Reuse an existing path. Request HTTP gzip, preserve it if supplied, otherwise
+    Reuse an existing path unless refresh=True. Request HTTP gzip, preserve it if supplied, otherwise
     compress during download. Validate the terminating record marker and gzip
     integrity by streaming; incomplete responses never become cache entries.
     ``opener`` permits deterministic request tests without a live service."""
     path = Path(path)
-    if path.exists():
+    if path.exists() and not refresh:
         return ""
     if path.suffix != ".gz":
         raise ValueError("GenBank downloads require a .gz output path")
-    opener = opener or urlopen
+    opener = opener or open_url
 
     def url(endpoint, **values):
         return BASE + endpoint + "?" + urlencode(values)
 
-    with opener(
-        url(
-            "esearch.fcgi",
-            db="nuccore",
-            field="Accession",
-            term=accession,
-            tool="coprarna",
-        )
-    ) as response:
-        identifier = ET.fromstring(response.read()).findtext("./IdList/Id")
-    if not identifier:
-        raise ValueError(f"no genome with accession number '{accession}' found")
-    with opener(url("esummary.fcgi", db="nuccore", id=identifier)) as response:
-        response.read()
     request = Request(
         url(
             "efetch.fcgi",
             db="nuccore",
-            id=identifier,
-            tool="intarna_web",
-            email="intarna@informatik.uni-freiburg.de",
+            id=accession,
+            tool="coprarna",
             rettype="gbwithparts",
+            retmode="text",
         ),
         headers={"Accept-Encoding": "gzip"},
     )
@@ -104,12 +118,18 @@ def _lock(path):
             fcntl.flock(stream, fcntl.LOCK_UN)
 
 
-def genome_path(accession, directory, database=None):
+def genome_path(accession, directory, database=None, *, refresh=False):
     """Resolve a compressed genome without making a per-job copy.
 
     Search the shared database, then supplied job files. Preserve plain supplied
     files and stream a gzip cache copy once. Serialize cache misses per accession
-    so concurrent jobs share one completed download and never read partial data."""
+    so concurrent jobs share one completed download and never read partial data.
+    Explicit refresh replaces the shared entry only after a completed download;
+    it ignores supplied files and leaves the previous cache intact on failure.
+    """
+    from .organisms import validate_accession
+
+    validate_accession(accession)
     directory = Path(directory)
     database = (
         Path(database).expanduser().resolve() if database else directory / "genomes"
@@ -117,6 +137,9 @@ def genome_path(accession, directory, database=None):
     database.mkdir(parents=True, exist_ok=True)
     target = database / (accession + ".gb.gz")
     with _lock(database / (accession + ".lock")):
+        if refresh:
+            download_genbank(accession, target, refresh=True)
+            return target
         for suffix in (".gb.gz", ".gbff.gz", ".gbk.gz"):
             cached = database / (accession + suffix)
             if cached.is_file():

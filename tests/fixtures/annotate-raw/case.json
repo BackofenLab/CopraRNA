@@ -10,5 +10,6 @@
   "outputs": [],
   "modules": [
     "Bio::SeqIO"
-  ]
+  ],
+  "helper": "annotate-raw"
 }

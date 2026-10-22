@@ -29,19 +29,14 @@ def _color(groups: int, group: int, pvalue: float, solid: bool) -> str:
 
 
 def _json_string(value):
-    from .compatibility import legacy_enabled
-
-    return (
-        '"' + value + '"' if legacy_enabled() else json.dumps(value, ensure_ascii=False)
-    )
+    return json.dumps(value, ensure_ascii=False)
 
 
 def heatmap_json(path: Path) -> str:
     """Write copraRNA.json from the retained enrichment membership table.
 
     The first three lines define clusters, dimensions and feature labels. Each
-    remaining membership becomes a colored JSON cell; corrected production escapes
-    labels safely while an explicit historical helper context preserves old bytes.
+    remaining membership becomes a colored JSON cell; labels are JSON-escaped.
     """
     lines = path.read_text().splitlines()
     groups, parameters, header = (line.split("\t") for line in lines[:3])

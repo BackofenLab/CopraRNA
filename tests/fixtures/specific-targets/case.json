@@ -2,5 +2,6 @@
   "script": "coprarna_aux/find_single_specific_targets_in_termCluster.pl",
   "language": "perl",
   "args": [],
-  "outputs": []
+  "outputs": [],
+  "helper": "specific-targets"
 }

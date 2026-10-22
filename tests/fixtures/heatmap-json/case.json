@@ -6,5 +6,6 @@
   ],
   "outputs": [
     "copraRNA.json"
-  ]
+  ],
+  "helper": "heatmap-json"
 }

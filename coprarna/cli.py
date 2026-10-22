@@ -1,8 +1,7 @@
-"""Command-line access to validated migration helpers and isolated batch jobs."""
+"""Command-line access to predictions, genome metadata and isolated batch jobs."""
 
 import argparse
 from concurrent.futures import ThreadPoolExecutor
-from importlib.resources import files
 import json
 import logging
 from pathlib import Path
@@ -21,13 +20,10 @@ def _parser():
     parser.add_argument("--version", action="version", version=__version__)
     commands = parser.add_subparsers(dest="command", required=True)
     helper = commands.add_parser(
-        "helper", help="Execute a validated port in one working directory"
-    )
-    helper.add_argument(
-        "--legacy", action="store_true", help="Reproduce the frozen legacy defects"
+        "helper", help="Execute a Python workflow stage in one working directory"
     )
     helper.add_argument("--workdir", type=Path, default=Path.cwd())
-    helper.add_argument("name", help="Helper name or original script basename")
+    helper.add_argument("name", help="Name from coprarna helpers")
     helper.add_argument("args", nargs=argparse.REMAINDER)
     batch = commands.add_parser(
         "batch", help="Run independent prediction or helper jobs from a JSON manifest"
@@ -72,7 +68,21 @@ def _parser():
                 type=type(field.default),
                 default=field.default,
             )
-    commands.add_parser("status", help="Print the complete migration inventory as JSON")
+    genomes = commands.add_parser(
+        "genomes", help="Resolve or prefetch RefSeq assemblies"
+    )
+    genomes.add_argument("accessions", nargs="+", help="NC_, NZ_ or GCF_ accessions")
+    genomes.add_argument("--genome-db", type=Path, default=Path("genomes"))
+    genomes.add_argument(
+        "--refresh",
+        action="store_true",
+        help="Refresh cached metadata (and genomes with --download)",
+    )
+    genomes.add_argument(
+        "--download",
+        action="store_true",
+        help="Also cache all chromosomes/plasmids as gzip GenBank",
+    )
     commands.add_parser("helpers", help="List helper names and positional arguments")
     return parser
 
@@ -230,12 +240,23 @@ def main(argv=None) -> int:
                     + (" " + " ".join(spec.arguments) if spec.arguments else "")
                     + (" ..." if spec.variadic else "")
                 )
-        elif args.command == "status":
-            print(files("coprarna").joinpath("migration.json").read_text(), end="")
+        elif args.command == "genomes":
+            from . import organisms, ncbi
+
+            metadata = [
+                organisms.resolve(identifier, args.genome_db, refresh=args.refresh)
+                for identifier in args.accessions
+            ]
+            if args.download:
+                for identifier in dict.fromkeys(
+                    r for m in metadata for r in m["replicons"]
+                ):
+                    ncbi.genome_path(
+                        identifier, Path.cwd(), args.genome_db, refresh=args.refresh
+                    )
+            print(json.dumps(metadata, indent=2))
         elif args.command == "helper":
-            sys.stdout.write(
-                run_helper(args.name, args.args, args.workdir, legacy=args.legacy)
-            )
+            sys.stdout.write(run_helper(args.name, args.args, args.workdir))
         elif args.command == "batch":
             if args.jobs < 1:
                 raise ValueError("--jobs must be at least 1")

@@ -1,29 +1,21 @@
 """GenBank helpers preserving the legacy coordinate and boundary conventions."""
 
 from pathlib import Path
-from itertools import chain
 import re
 
 from .io import genbank_records, accession
 
-# Perl's legacy transliteration complements only these four bases, not all IUPAC.
-_COMPLEMENT = str.maketrans("gatcGATC", "ctagCTAG")
-
 
 def _reverse_complement(sequence: str) -> str:
-    from .compatibility import legacy_enabled
+    from Bio.Seq import Seq
 
-    if not legacy_enabled():
-        from Bio.Seq import Seq
-
-        return str(Seq(sequence).reverse_complement())
-    return sequence[::-1].translate(_COMPLEMENT)
+    return str(Seq(sequence).reverse_complement())
 
 
 def _subseq(sequence: str, start: int, end: int) -> str:
     # Bio::Seq allows an empty interval when start == end+1.
     if start < 1 or end > len(sequence) or start > end + 1:
-        raise ValueError(f"Invalid legacy subsequence coordinates: {start}, {end}")
+        raise ValueError(f"Invalid subsequence coordinates: {start}, {end}")
     return sequence[start - 1 : end]
 
 
@@ -88,20 +80,12 @@ def parse_regions(path: Path, up: int, down: int, region: str) -> str:
     """Extract each CDS target region from streamed GenBank records.
 
     Coordinates follow the original 1-based inclusive flank conventions, with
-    strand, circular wrap and compound CDS handling. Corrected production uses
-    each record's own sequence; the helper oracle can reproduce the old defect."""
-    records = genbank_records(path)
-    first = next(records)
-    # The helper oracle alone reproduces Perl's first-record sequence defect.
-    source = str(first.seq)
-    circular = first.annotations.get("topology") == "circular"
+    strand, circular wrap and compound CDS handling. Each feature uses its own
+    record's sequence; the input file is not modified."""
     output = []
-    for record in chain([first], records):
-        from .compatibility import legacy_enabled
-
-        if not legacy_enabled():
-            source = str(record.seq)
-            circular = record.annotations.get("topology") == "circular"
+    for record in genbank_records(path):
+        source = str(record.seq)
+        circular = record.annotations.get("topology") == "circular"
         for feature in record.features:
             if feature.type != "CDS":
                 continue
@@ -175,23 +159,18 @@ def check_gene_cds(path: Path, display_name: str | None = None) -> str:
     return ""
 
 
-def extract_proteins(
-    path: Path, mapping_text: str, display_name: str | None = None
-) -> str:
-    # Matching is deliberately unanchored, and removes exactly three filename bytes.
-    """Return translated CDS FASTA with organism-code/locus-tag identifiers."""
-    from .compatibility import legacy_enabled
+def extract_proteins(path: Path, organism: str | None = None) -> str:
+    """Return translated CDS FASTA with organism:locus-tag identifiers.
 
-    identifier = (
-        (display_name or str(path))[:-3]
-        if legacy_enabled()
-        else accession(display_name or path)
-    )
-    code = ""
-    for line in mapping_text.splitlines():
-        if re.search(identifier, line):
-            code = re.split(r"\s", line)[0]
-            break
+    Use an explicit assembly code to group chromosomes and plasmids in DomClust,
+    or the file's accession for a standalone helper. No organism catalog is used.
+    Reject whitespace/colon in codes; stream the input without writing files.
+    """
+    code = organism or accession(path).replace(".", "_")
+    if not code or re.search(r"\s|:", code):
+        raise ValueError(
+            "Protein organism code must be nonempty without whitespace or colon"
+        )
     output = []
     for record in genbank_records(path):
         for feature in record.features:

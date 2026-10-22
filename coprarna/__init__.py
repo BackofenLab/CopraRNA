@@ -1,6 +1,6 @@
-"""Python 3 ports of CopraRNA, with explicit legacy compatibility."""
+"""CopraRNA 3: comparative RNA target prediction with Python."""
 
-__version__ = "3.0.0.dev0"
+__version__ = "3.0.0"
 
 # R's finite-difference fit is sensitive to BLAS reduction order. Match the
 # validated Haswell/Zen AVX2 kernels before NumPy/SciPy initialize OpenBLAS.

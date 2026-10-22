@@ -4,9 +4,9 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "coprarna"
-version = "3.0.0.dev0"
+version = "3.0.0"
 description = "Comparative RNA target prediction with the Python 3 CopraRNA2 workflow"
-readme = "README.2.md"
+readme = "README.md"
 requires-python = ">=3.11"
 license = {file = "LICENSE"}
 authors = [{name = "CopraRNA contributors"}]
@@ -26,8 +26,8 @@ namespaces = false
 exclude = ["tests*"]
 
 [tool.setuptools.package-data]
-coprarna = ["data/*.gz", "data/*.txt", "data/*.html", "migration.json"]
+coprarna = ["data/*.txt", "data/*.html"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-markers = ["integration: optional legacy-oracle checks on all bundled real genomes"]
+markers = ["integration: optional checks on all bundled reference genomes"]

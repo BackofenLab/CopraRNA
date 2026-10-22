@@ -1,13 +1,12 @@
 """Interaction-coordinate mapping, consensus peaks and Jalview annotations."""
 
 from pathlib import Path
-from .io import paths
-import gzip
-from importlib.resources import files
+from .io import paths, genome_paths, genbank_records
+import json
 import numpy as np
 from Bio import SeqIO
 
-from .runtime import command, options
+from .runtime import command, options, srna_input
 from .rcompat import read_table, write_table, save_rdata, format_matrix_column
 from .rcompat import RNamedList
 from .statistics import r_number
@@ -87,30 +86,32 @@ def overlap(peak, start, end, threshold=0.6):
 
 
 def organism_names(organisms, directory):
-    """Derive compact plot labels from a local or packaged availability table."""
-    path = directory / "CopraRNA_available_organisms.txt"
-    text = (
-        path.read_text()
-        if path.exists()
-        else gzip.decompress(
-            files("coprarna")
-            .joinpath("data/CopraRNA_available_organisms.txt.gz")
-            .read_bytes()
-        ).decode()
-    )
-    mapping = [
-        line.split("\t")
-        for line in text.splitlines()
-        if line and not line.startswith("#")
-    ]
+    """Return compact plot labels from the job metadata or local GenBank records.
+
+    Match complete accession identities, ignoring version only for display lookup.
+    Standalone reports fall back to the accession when metadata is unavailable.
+    Read files without querying NCBI or modifying the job.
+    """
+    mapping = {}
+    path = directory / "genome_metadata.json"
+    if path.is_file():
+        for item in json.loads(path.read_text()):
+            for identifier in item["replicons"]:
+                mapping[identifier.split(".")[0]] = item["organism"]
+    else:
+        for path in genome_paths(directory):
+            for record in genbank_records(path):
+                mapping[record.id.split(".")[0]] = record.annotations.get(
+                    "organism", record.id
+                )
     names = []
     for org in organisms:
-        found = next(
-            (row[1] for row in mapping if len(row) > 1 and org.split(".")[0] in row[0]),
-            org,
-        )
-        parts = found.split("_")
-        label = found[:3] + "_" + (parts[1] if len(parts) > 1 else "NA")
+        found = mapping.get(org.split(".")[0])
+        if not found:
+            names.append(org)
+            continue
+        parts = found.replace("_", " ").split()
+        label = parts[0][:3] + "_" + (parts[1] if len(parts) > 1 else "NA")
         if len(parts) > 2:
             label += "_" + parts[-1]
         names.append(label)
@@ -153,7 +154,7 @@ def compute_conservation(ooi: str, directory: Path) -> str:
             "--quiet",
             "--localpair",
             "--quiet",
-            options(directory).get("working sRNA FASTA", "input_sRNA.fa"),
+            srna_input(directory),
         ],
         directory,
         output="aligned_sRNA.fa",

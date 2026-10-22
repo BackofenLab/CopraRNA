@@ -3,5 +3,6 @@
   "language": "perl",
   "args": [],
   "outputs": [],
-  "legacy_parity": false
+  "legacy_parity": false,
+  "helper": "archive-readme"
 }

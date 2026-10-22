@@ -8,5 +8,6 @@
   "legacy_args": [
     "result.csv",
     "1"
-  ]
+  ],
+  "helper": "sampled-count"
 }

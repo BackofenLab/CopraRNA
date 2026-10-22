@@ -1,0 +1,10 @@
+{
+  "schema_version": 1,
+  "query": "NC_000913",
+  "assembly": "GCF_000005845.2",
+  "organism": "Escherichia coli str. K-12 substr. MG1655",
+  "replicons": [
+    "NC_000913.3"
+  ],
+  "retrieved_at": "2026-10-22T13:11:31.853427+00:00"
+}

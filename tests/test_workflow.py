@@ -11,14 +11,17 @@ import pytest
 from coprarna import alignments, conservation, plots
 from coprarna.pipeline import Config, run_prediction
 from coprarna.rcompat import load_rdata
-from tests.support.legacy import FIXTURES
+from tests.support.fixtures import FIXTURES
 from tools.build_pipeline_fixture import build
 
 
 @pytest.fixture
 def oracle(tmp_path):
-    with tarfile.open(FIXTURES / "workflow/legacy.tar.gz") as archive:
+    with tarfile.open(FIXTURES / "workflow/captured.tar.gz") as archive:
         archive.extractall(tmp_path, filter="data")
+    shutil.copyfile(
+        FIXTURES / "workflow/organisms.json", tmp_path / "genome_metadata.json"
+    )
     return tmp_path
 
 
@@ -133,7 +136,7 @@ def test_file_and_inline_parameters_produce_identical_predictions(
     database.mkdir()
     jobs = [tmp_path / "file-job", tmp_path / "inline-job"]
     for job in jobs:
-        build(job)
+        build(job, database)
     for path in jobs[0].glob("*.gb.gz"):
         path.rename(database / path.name)
     for path in jobs[1].glob("*.gb.gz"):
@@ -202,13 +205,23 @@ def test_corrected_workflow_builds_clusters_preserves_inputs_and_exports_vectors
     tmp_path,
 ):
     import csv
+    import json
     import zipfile
     import xml.etree.ElementTree as ET
 
     database = tmp_path / "database"
     database.mkdir()
     job = tmp_path / "native"
-    build(job)
+    build(job, database, accessions=["NZ_CP999901", "NC_999902", "NC_999903"])
+    # Exercise an assembly FASTA ID and a long, previously unknown NZ_ report ID
+    # through real native tools, without an availability catalog or network.
+    supplied = job / "input_sRNA.fa"
+    supplied.write_text(
+        supplied.read_text().replace(">NZ_CP999901", ">GCF_000000001.1")
+    )
+    metadata = json.loads((database / "metadata/NZ_CP999901.json").read_text())
+    metadata["query"] = "GCF_000000001.1"
+    (database / "metadata/GCF_000000001.1.json").write_text(json.dumps(metadata))
     (job / "cluster.tab").unlink()
     for path in job.glob("*.gb.gz"):
         path.rename(database / path.name)
@@ -220,6 +233,8 @@ def test_corrected_workflow_builds_clusters_preserves_inputs_and_exports_vectors
     with (job / "CopraRNA_result_all.csv").open() as stream:
         rows = list(csv.reader(stream))
     assert len(rows) > 3
+    assert rows[0][2:5] == ["NZ_CP999901", "NC_999902", "NC_999903"]
+    assert "version:CopraRNA 3.0.0\n" in (job / "CopraRNA_option_file.txt").read_text()
     assert (job / "cluster.tab").read_text().startswith("#id\t")
     with (job / "coprarna_websrv_table.csv").open() as stream:
         web = list(csv.reader(stream))

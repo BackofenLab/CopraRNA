@@ -7,7 +7,7 @@ import re
 import shutil
 import zipfile
 import tempfile
-from . import parameters
+from . import parameters, organisms, __version__
 from .fasta import format_fasta
 from .io import ensure_input_is_distinct
 from . import homology, plots
@@ -66,12 +66,8 @@ def _validate(path, config, directory):
     if any("-" in str(record.seq) for record in records):
         raise ValueError("Gaps are present in sRNA sequences")
     ensure_input_is_distinct(path, directory)
-    mapping = homology.affiliations()
     for identifier in headers:
-        if not re.search(r"NC_\d{6}|NZ_.*", identifier):
-            raise ValueError(f"{identifier} does not match correct RefSeq ID format")
-        if identifier not in mapping:
-            raise ValueError(f"{identifier} is not present in the availability list")
+        organisms.validate_accession(identifier)
     if len(headers) != len(set(headers)):
         raise ValueError("Duplicate organisms are present in input")
     return headers
@@ -200,14 +196,10 @@ def _cleanup(directory, config):
 def run_prediction(srna: Path, directory: Path, config: Config | None = None) -> str:
     """Run one complete prediction in an isolated working directory.
 
-    Always select corrected production behavior, even when called from a helper
-    or a caller with an active historical comparison context. Return empty stdout;
-    scientific results are files and failures propagate as exceptions."""
-    config = config or Config()
-    from .compatibility import legacy_behavior
-
-    with legacy_behavior(False):
-        return _run_prediction(srna, directory, config)
+    Return empty stdout; scientific results are files and failures propagate as
+    exceptions. Preserve the supplied FASTA and parameter file through cleanup.
+    """
+    return _run_prediction(srna, directory, config or Config())
 
 
 def _run_prediction(srna, directory, config):
@@ -273,7 +265,7 @@ def _execute(directory, config, headers, srna, working, database, parameter_path
         ("noclean", int(config.noclean)),
         ("cons", config.cons),
         ("ooifilt", config.ooifilt),
-        ("version", "CopraRNA 2.1.3"),
+        ("version", "CopraRNA " + __version__),
     ]
     (directory / "CopraRNA_option_file.txt").write_text(
         "".join(

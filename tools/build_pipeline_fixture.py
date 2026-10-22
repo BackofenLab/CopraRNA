@@ -1,7 +1,8 @@
-"""Build a small offline multi-genome job for full legacy/Python comparison."""
+"""Build a small offline multi-genome job for native workflow tests."""
 
 from pathlib import Path
 import gzip
+import json
 import random
 from Bio import SeqIO
 from Bio.Seq import Seq
@@ -11,15 +12,21 @@ from Bio.SeqFeature import SeqFeature, SimpleLocation
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def build(directory):
+def build(directory, database=None, accessions=None):
+    """Write deterministic synthetic genomes, metadata and optional input clusters.
+
+    Optional accessions exercise previously unseen/long RefSeq IDs without NCBI.
+    """
     directory.mkdir(parents=True, exist_ok=True)
+    database = Path(database) if database else directory / "genomes"
+    (database / "metadata").mkdir(parents=True, exist_ok=True)
     rng = random.Random(5017)
     length = 18000
     dna = "".join(rng.choices("ACGT", k=length))
     query = "".join(rng.choices("ACGT", k=35))
     rrna = "".join(rng.choices("ACGT", k=130))
     proteins = ["".join(rng.choices("ACDEFGHIKLMNPQRSTVWY", k=80)) for _ in range(30)]
-    accessions = ["NC_000913", "NC_000964", "NC_002516"]
+    accessions = accessions or ["NC_000913", "NC_000964", "NC_002516"]
     input = []
     for j, accession in enumerate(accessions):
         genome = list(dna)
@@ -71,18 +78,25 @@ def build(directory):
                 qualifiers={"product": ["16S ribosomal RNA"]},
             )
         )
-        with gzip.open(directory / (accession + ".gb.gz"), "wt") as stream:
+        with gzip.open(directory / (accession + ".1.gb.gz"), "wt") as stream:
             SeqIO.write(record, stream, "genbank")
+        metadata = dict(
+            schema_version=1,
+            query=accession,
+            assembly=f"GCF_{j + 1:09d}.1",
+            organism=f"Test species {j}",
+            replicons=[accession + ".1"],
+            retrieved_at="synthetic",
+        )
+        (database / "metadata" / (accession + ".json")).write_text(json.dumps(metadata))
         q = list(query)
         if j:
             q[j * 3] = rng.choice("ACGT")
         input.append(f">{accession}\n" + "".join(q) + "\n")
     (directory / "input_sRNA.fa").write_text("".join(input))
-    mapping = (ROOT / "coprarna_aux/kegg2refseqnew.csv").read_text().splitlines()
-    codes = [
-        next(line.split("\t")[0] for line in mapping if accession in line)
-        for accession in accessions
-    ]
+    from coprarna.homology import protein_code
+
+    codes = [protein_code(j) for j in range(len(accessions))]
     table = ["#cluster\t" + "\t".join(codes) + "\n"]
     for i in range(30):
         table.append(

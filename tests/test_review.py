@@ -14,7 +14,7 @@ from coprarna import genome, intarna, ncbi, parameters, pipeline, phylogeny
 from coprarna.cli import main
 from coprarna.helpers import HELPERS
 from coprarna.io import open_text, read_text, write_text
-from tests.support.legacy import FIXTURES
+from tests.support.fixtures import FIXTURES
 
 
 def test_retired_mode_and_native_parameters_are_not_advertised(capsys):
@@ -217,8 +217,6 @@ def test_download_is_streamed_and_kept_compressed(tmp_path, server_gzip):
     stream = Stream(gzip.compress(content) if server_gzip else content)
     stream.headers = {"Content-Encoding": "gzip"} if server_gzip else {}
     responses = [
-        BytesIO(b"<eSearchResult><IdList><Id>1</Id></IdList></eSearchResult>"),
-        BytesIO(b"<eSummaryResult/>"),
         stream,
     ]
 
@@ -235,8 +233,6 @@ def test_download_is_streamed_and_kept_compressed(tmp_path, server_gzip):
 
 def test_truncated_download_is_not_cached(tmp_path):
     responses = [
-        BytesIO(b"<eSearchResult><IdList><Id>1</Id></IdList></eSearchResult>"),
-        BytesIO(b"<eSummaryResult/>"),
         BytesIO(b"LOCUS unfinished\n"),
     ]
     target = tmp_path / "NC_000001.gb.gz"

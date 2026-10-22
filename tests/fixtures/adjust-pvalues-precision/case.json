@@ -6,5 +6,6 @@
   ],
   "outputs": [
     "padj.csv"
-  ]
+  ],
+  "helper": "adjust-pvalues"
 }

@@ -9,5 +9,6 @@
   "unordered": [
     "NC_000001_opt.intarna.csv",
     "NC_000001_subopt.intarna.csv"
-  ]
+  ],
+  "helper": "disentangle"
 }

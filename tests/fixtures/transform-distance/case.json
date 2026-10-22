@@ -4,5 +4,6 @@
   "args": [
     "distmat.out"
   ],
-  "outputs": []
+  "outputs": [],
+  "helper": "transform-distance"
 }

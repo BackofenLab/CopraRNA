@@ -1,4 +1,4 @@
-"""External scientific executables, options and legacy file operations."""
+"""External scientific executables and job settings."""
 
 from pathlib import Path
 import os
@@ -50,3 +50,16 @@ def command(arguments, directory, output=None, quiet=False):
     finally:
         if output:
             stream.close()
+
+
+def srna_input(directory):
+    """Return the sRNA FASTA whose IDs match comparative report columns.
+
+    Prefer the job's primary-chromosome working copy. Standalone helpers without
+    resolved metadata use the configured working FASTA or input_sRNA.fa. This only
+    selects a path; it neither modifies nor validates the supplied sequence file.
+    """
+    resolved = Path(directory) / "resolved_sRNA.fa"
+    if resolved.is_file():
+        return str(resolved)
+    return options(directory).get("working sRNA FASTA", "input_sRNA.fa")

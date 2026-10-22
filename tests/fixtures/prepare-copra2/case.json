@@ -6,5 +6,6 @@
   ],
   "outputs": [
     "CopraRNA2_prep.csv"
-  ]
+  ],
+  "helper": "prepare-copra2"
 }

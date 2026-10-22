@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "query": "NC_000911",
+  "assembly": "GCF_000009725.1",
+  "organism": "Synechocystis sp. PCC 6803",
+  "replicons": [
+    "NC_000911.1",
+    "NC_005229.1",
+    "NC_005232.1",
+    "NC_005230.1",
+    "NC_005231.1"
+  ],
+  "retrieved_at": "2026-10-22T13:11:22.418657+00:00"
+}

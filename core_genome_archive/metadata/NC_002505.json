@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "query": "NC_002505",
+  "assembly": "GCF_000006745.1",
+  "organism": "Vibrio cholerae O1 biovar El Tor str. N16961",
+  "replicons": [
+    "NC_002505.1",
+    "NC_002506.1"
+  ],
+  "retrieved_at": "2026-10-22T13:11:55.803543+00:00"
+}

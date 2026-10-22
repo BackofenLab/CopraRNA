@@ -1,6 +1,7 @@
 """Streaming access to compressed and plain scientific data files."""
 
 from contextlib import contextmanager
+from fnmatch import fnmatchcase
 import gzip
 from pathlib import Path
 from Bio import SeqIO
@@ -62,3 +63,99 @@ def genome_paths(directory):
             for p in Path(directory).glob(suffix)
         }
     )
+
+
+# Fixed/native output namespaces. Inputs may use any other basename, including
+# input_sRNA.fa and custom.csv; keep this list current when adding new producers.
+_JOB_OUTPUTS = (
+    "ncrna.fa",
+    "ncrna_aligned.fa",
+    "aligned_sRNA.fa",
+    "ncRNA_*.fa",
+    "*_upfromstartpos_*_down_*.fa*",
+    "*.filter.json",
+    "16s_sequences.*",
+    "compatible.*",
+    "zscore.weight",
+    "weights.warning",
+    "genome_paths.txt",
+    "CopraRNA_option_file.txt",
+    "CopraRNA*.csv",
+    "CopraRNA*_pvalues.txt",
+    "CopraRNA_top_targets.fa",
+    "CopraRNA_result.map_evo_align",
+    "IntaRNA_parameters.txt",
+    "IntaRNA_web.*",
+    "IntaRNA_chartReport*.txt",
+    "intarna_websrv_table*.csv",
+    "coprarna_*table.csv",
+    "all.fas*",
+    "cluster.tab",
+    "cluster.members",
+    "opt_tags.*",
+    "subopt_tags.*",
+    "padj.csv",
+    "fasta_temp_file*",
+    "distmat*",
+    "err.log",
+    "error.log",
+    "README.txt",
+    "gene_CDS_exception.txt",
+    "duplicated_CDS.txt",
+    "merged_refseq_ids.txt",
+    "conservation_table.Rdata",
+    "interaction_positions.Rdata",
+    "consensus_positions.Rdata",
+    "evo_alignments.zip",
+    "mRNA_regions*",
+    "sRNA_regions*",
+    "thumbnail_*.svg",
+    "*_conservation_heatmap.pdf",
+    "*_conservation_heatmap.svg",
+    "enriched_heatmap_big.*",
+    "enrichment.txt",
+    "DAVID_enrichment*.txt",
+    "termClusterReport.txt",
+    "aux_table.csv",
+    "org_of_interest_aux_enrichment.txt",
+    "copra_heatmap.html",
+    "copraRNA.json",
+)
+
+
+def ensure_input_is_distinct(path, directory, *, allow_parameter_snapshot=False):
+    """Reject inputs that a required job output would overwrite or misinterpret.
+
+    Check both the supplied path and canonical path, plus existing output symlinks
+    that resolve to the input. Check before writing potentially conflicting files.
+    A supplied native
+    settings snapshot is allowed because it is forwarded without rewriting it.
+    Cleanup separately guards destinations when moving reports into subfolders.
+    """
+    directory = Path(directory).resolve()
+    original = Path(path).resolve()
+    candidates = {Path(path).absolute(), original}
+    candidates.update(
+        entry
+        for entry in directory.iterdir()
+        if entry.is_symlink() and entry.resolve() == original
+    )
+    for candidate in candidates:
+        try:
+            relative = candidate.relative_to(directory)
+        except ValueError:
+            continue
+        if len(relative.parts) > 1:
+            if relative.parts[0] in {"target_alignments", "evo_alignments"}:
+                raise ValueError(
+                    f"Input {path} collides with the generated {relative.parts[0]} directory; "
+                    "use a separate working directory"
+                )
+            continue
+        if allow_parameter_snapshot and candidate.name == "IntaRNA_parameters.txt":
+            continue
+        if any(fnmatchcase(candidate.name, pattern) for pattern in _JOB_OUTPUTS):
+            raise ValueError(
+                f"Input {path} collides with generated output {candidate.name}; "
+                "use a separate working directory"
+            )

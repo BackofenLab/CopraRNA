@@ -9,6 +9,7 @@ import zipfile
 import tempfile
 from . import parameters
 from .fasta import format_fasta
+from .io import ensure_input_is_distinct
 from . import homology, plots
 from .statistics import r_number
 
@@ -64,24 +65,7 @@ def _validate(path, config, directory):
         raise ValueError("cons 1 can not be combined with nooi")
     if any("-" in str(record.seq) for record in records):
         raise ValueError("Gaps are present in sRNA sequences")
-    if path.resolve().parent == directory.resolve() and (
-        path.resolve().name
-        in {
-            "ncrna.fa",
-            "aligned_sRNA.fa",
-            "ncrna_aligned.fa",
-            "fasta_temp_file",
-            "CopraRNA_option_file.txt",
-            "genome_paths.txt",
-            "IntaRNA_parameters.txt",
-        }
-        or re.search(
-            r"^ncRNA_N[CZ]_|_upfromstartpos_\d+_down_\d+\.fa$", path.resolve().name
-        )
-    ):
-        raise ValueError(
-            "The input FASTA name collides with a generated file; use a separate working directory"
-        )
+    ensure_input_is_distinct(path, directory)
     mapping = homology.affiliations()
     for identifier in headers:
         if not re.search(r"NC_\d{6}|NZ_.*", identifier):
@@ -108,6 +92,11 @@ def _cleanup(directory, config):
     }
     if configured.get("intarna parameter file"):
         protected.add(Path(configured["intarna parameter file"]).resolve())
+
+    def move_generated(path, destination):
+        if path.resolve() not in protected and destination.resolve() not in protected:
+            shutil.move(str(path), destination)
+
     patterns = (
         ["ncrna_aligned.fa"]
         + ["cluster.members"]
@@ -165,7 +154,7 @@ def _cleanup(directory, config):
         for pattern in patterns:
             for path in directory.glob(pattern):
                 if path.is_file() and path.resolve() not in protected:
-                    shutil.move(str(path), directory / subdir / path.name)
+                    move_generated(path, directory / subdir / path.name)
     if config.enrich:
         (directory / "Enrichment").mkdir(exist_ok=True)
         for pattern in (
@@ -177,7 +166,7 @@ def _cleanup(directory, config):
         ):
             for path in directory.glob(pattern):
                 if path.resolve() not in protected:
-                    shutil.move(str(path), directory / "Enrichment" / path.name)
+                    move_generated(path, directory / "Enrichment" / path.name)
     (directory / "all_predictions").mkdir(exist_ok=True)
     for path in directory.glob("*.csv"):
         if path.resolve() not in protected and path.name not in (
@@ -185,11 +174,11 @@ def _cleanup(directory, config):
             "CopraRNA_result_all.csv",
             "coprarna_websrv_table.csv",
         ):
-            shutil.move(str(path), directory / "all_predictions" / path.name)
+            move_generated(path, directory / "all_predictions" / path.name)
     (directory / "Rdata").mkdir(exist_ok=True)
     for path in directory.glob("*.Rdata"):
         if path.resolve() not in protected:
-            shutil.move(str(path), directory / "Rdata" / path.name)
+            move_generated(path, directory / "Rdata" / path.name)
     for name in ("target_alignments",):
         if not any(directory / name in path.parents for path in protected):
             shutil.rmtree(directory / name, ignore_errors=True)

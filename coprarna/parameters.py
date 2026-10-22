@@ -5,6 +5,7 @@ from pathlib import Path
 import re
 import tempfile
 from .runtime import command, options
+from .io import ensure_input_is_distinct
 
 PERSONALITY = "IntaRNAsTar"
 
@@ -34,6 +35,11 @@ def parameter_file(directory, filename=None, text=None):
         path = path.resolve()
         if not path.is_file():
             raise ValueError(f"IntaRNA parameter file does not exist: {path}")
+        ensure_input_is_distinct(
+            filename if Path(filename).is_absolute() else directory / filename,
+            directory,
+            allow_parameter_snapshot=True,
+        )
         snapshot = directory / "IntaRNA_parameters.txt"
         if path != snapshot.resolve():
             snapshot.write_bytes(path.read_bytes())

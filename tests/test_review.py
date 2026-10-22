@@ -390,6 +390,7 @@ def test_web_export_cannot_reintroduce_a_filtered_perfect_helix(tmp_path, monkey
                 writer.writerow(record)
         return ""
 
+    monkeypatch.setattr(parameters, "check_version", lambda _: "IntaRNA 3.4.1")
     monkeypatch.setattr(webserver, "command", native)
     webserver.export_prediction(tmp_path, "NC_000001", 200, 100)
     assert len(read_text(tmp_path / "IntaRNA_web.csv.gz").splitlines()) == 2
@@ -426,3 +427,72 @@ def test_cleanup_preserves_all_inputs_and_parameter_snapshot(tmp_path, name):
     assert original.read_text() == ">NC_000001\nACGU\n"
     assert parameter.read_text() == snapshot.read_text() == "tAccW=80\n"
     assert not disposable.exists()
+
+
+@pytest.mark.parametrize(
+    "name", ["README.txt", "CopraRNA_result.csv", "16s_sequences.fa", "zscore.weight"]
+)
+def test_generated_output_names_reject_fasta_before_writing(tmp_path, name):
+    content = b">NC_000913\nACGU\n>NC_000964\nACGU\n>NC_002516\nACGU\n"
+    original = tmp_path / name
+    original.write_bytes(content)
+    with pytest.raises(ValueError, match="collides"):
+        pipeline.run_prediction(original, tmp_path)
+    assert original.read_bytes() == content
+    assert not (tmp_path / "FASTA").exists()
+
+
+@pytest.mark.parametrize("symlink_is_input", [True, False])
+def test_generated_output_symlinks_cannot_overwrite_external_fasta(
+    tmp_path, symlink_is_input
+):
+    job = tmp_path / "job"
+    job.mkdir()
+    original = tmp_path / "external.fa"
+    content = b">NC_000913\nACGU\n>NC_000964\nACGU\n>NC_002516\nACGU\n"
+    original.write_bytes(content)
+    alias = job / "ncrna.fa"
+    alias.symlink_to(original)
+    with pytest.raises(ValueError, match="collides"):
+        pipeline.run_prediction(alias if symlink_is_input else original, job)
+    assert original.read_bytes() == content and alias.is_symlink()
+
+
+@pytest.mark.parametrize("name", ["CopraRNA_option_file.txt", "ncrna.fa"])
+def test_native_parameter_file_cannot_be_a_generated_output(tmp_path, name):
+    original = tmp_path / name
+    original.write_text("tAccW=80\n")
+    with pytest.raises(ValueError, match="collides"):
+        with parameters.parameter_file(tmp_path, original):
+            pass
+    assert original.read_text() == "tAccW=80\n"
+    assert not (tmp_path / "IntaRNA_parameters.txt").exists()
+
+
+def test_cleanup_does_not_move_a_report_over_a_nested_input(tmp_path):
+    original = tmp_path / "FASTA/ncrna.fa"
+    original.parent.mkdir()
+    original.write_text(">NC_000913\nACGU\n")
+    generated = tmp_path / "ncrna.fa"
+    generated.write_text(">ncRNA_NC_000913\nACGU\n")
+    (tmp_path / "CopraRNA_option_file.txt").write_text(f"sRNA FASTA:{original}\n")
+    pipeline._cleanup(tmp_path, pipeline.Config())
+    assert original.read_text() == ">NC_000913\nACGU\n"
+    assert generated.read_text() == ">ncRNA_NC_000913\nACGU\n"
+
+
+
+
+
+
+@pytest.mark.parametrize(
+    "name", ["target_alignments/1.fa", "evo_alignments/1/target.fa"]
+)
+def test_native_output_folders_are_not_used_as_input_locations(tmp_path, name):
+    original = tmp_path / name
+    original.parent.mkdir(parents=True)
+    content = b">NC_000913\nACGU\n>NC_000964\nACGU\n>NC_002516\nACGU\n"
+    original.write_bytes(content)
+    with pytest.raises(ValueError, match="collides"):
+        pipeline.run_prediction(original, tmp_path)
+    assert original.read_bytes() == content

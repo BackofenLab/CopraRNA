@@ -92,13 +92,19 @@ def filter_perfect_helices(path, windows=None):
     }
 
 
-def prediction_signature(directory, target, query):
+def prediction_signature(directory, target, query, *, native_version=None):
     """Hash scientific inputs and settings to prevent stale prediction reuse.
 
     Include tool version, personality, filter policy and file contents. Exclude
-    absolute paths so equivalent jobs and inline/file settings have the same key."""
+    absolute paths so equivalent jobs and inline/file settings have the same key.
+    Native callers supply the detected release instead of trusting stale options."""
     digest = hashlib.sha256(b"CopraRNA2:perfect-helix-filter=.9:v1")
-    digest.update(options(directory).get("IntaRNA version", "").encode())
+    version = (
+        native_version
+        if native_version is not None
+        else options(directory).get("IntaRNA version", "")
+    )
+    digest.update(version.encode())
     digest.update(parameters.PERSONALITY.encode())
     files = [Path(directory) / target, Path(directory) / query]
     params = parameters.arguments(directory)
@@ -120,6 +126,7 @@ def prepare_predictions(
     Groups contain comma-separated replicon paths, with the primary chromosome
     first. Each organism runs independently using the same parameter file. Only
     matching cached predictions are reused; filtering precedes all statistical work."""
+    native_version = parameters.check_version(directory)
     opt = options(directory)
     for group in groups:
         main = accession(group.split(",")[0])
@@ -141,7 +148,9 @@ def prepare_predictions(
         main = accession(group.split(",")[0])
         target = f"{main}_upfromstartpos_{up}_down_{down}.fa"
         output = target + ".intarna.csv.gz"
-        signature = prediction_signature(directory, target, queries[main])
+        signature = prediction_signature(
+            directory, target, queries[main], native_version=native_version
+        )
         report_path = directory / (target + ".filter.json")
         try:
             cached = json.loads(report_path.read_text())

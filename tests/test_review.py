@@ -481,8 +481,36 @@ def test_cleanup_does_not_move_a_report_over_a_nested_input(tmp_path):
     assert generated.read_text() == ">ncRNA_NC_000913\nACGU\n"
 
 
+@pytest.mark.parametrize("entrypoint", ["homology", "prepare-intarna", "web-export"])
+def test_standalone_prediction_entrypoints_reject_old_intarna(
+    tmp_path, monkeypatch, entrypoint
+):
+    from coprarna import homology, webserver
+
+    monkeypatch.setattr(parameters, "command", lambda *args: "IntaRNA 2.4.0\n")
+    with pytest.raises(RuntimeError, match="3 or newer"):
+        if entrypoint == "homology":
+            homology.run_homology(tmp_path / "input.fa", 200, 100, "5utr", [], tmp_path)
+        elif entrypoint == "prepare-intarna":
+            intarna.prepare_predictions(
+                tmp_path / "input.fa", 200, 100, "5utr", [], tmp_path
+            )
+        else:
+            webserver.export_prediction(tmp_path, "NC_000913", 200, 100)
+    assert not list(tmp_path.iterdir())
 
 
+def test_detected_native_version_invalidates_stale_recorded_version(tmp_path):
+    (tmp_path / "target.fa").write_text(">target\nACGU\n")
+    (tmp_path / "query.fa").write_text(">query\nUGCA\n")
+    (tmp_path / "CopraRNA_option_file.txt").write_text(
+        "IntaRNA version:IntaRNA 3.4.1\n"
+    )
+    old = intarna.prediction_signature(tmp_path, "target.fa", "query.fa")
+    detected = intarna.prediction_signature(
+        tmp_path, "target.fa", "query.fa", native_version="IntaRNA 3.5.0"
+    )
+    assert detected != old
 
 
 @pytest.mark.parametrize(

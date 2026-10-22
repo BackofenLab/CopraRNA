@@ -194,6 +194,7 @@ def export_prediction(directory, ooi, up, down):
     from reappearing when the comparative result used a retained suboptimal hit."""
     from Bio import SeqIO
 
+    parameters.check_version(directory)
     path = directory / f"{ooi}_upfromstartpos_{up}_down_{down}.fa"
     records = list(SeqIO.parse(path, "fasta"))
     lines = (directory / "CopraRNA_result.csv").read_text().splitlines()[1:]

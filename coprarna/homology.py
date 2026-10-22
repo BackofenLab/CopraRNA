@@ -12,6 +12,7 @@ from . import (
     fasta,
     genome,
     intarna,
+    parameters,
     ncbi,
     resources,
     statistics,
@@ -106,6 +107,7 @@ def run_homology(
     protein similarities with BLAST+ and homology with DomClust unless cluster.tab
     was supplied. Combine optimal and suboptimal interactions, map conservation,
     select the requested comparative ranking, then add optional web/enrichment data."""
+    parameters.check_version(directory)
     opt = options(directory)
     mapping = affiliations()
     groups = []

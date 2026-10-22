@@ -20,6 +20,12 @@ from . import (
 
 @dataclass(frozen=True)
 class Helper:
+    """Describe an active script mapping and its positional CLI argument contract.
+
+    The immutable record stores the original basename, Python target and argument
+    names; variadic determines whether trailing positional arguments are accepted.
+    """
+
     legacy: str
     target: str
     arguments: tuple[str, ...]

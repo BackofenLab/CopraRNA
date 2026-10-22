@@ -7,10 +7,15 @@ import numpy as np
 
 
 def r_sum(values):
+    """Sum with an extended-precision accumulator before returning a Python float.
+
+    Retain R-compatible reduction rounding used by captured statistical fixtures.
+    """
     return float(np.sum(np.asarray(values, dtype=np.longdouble)))
 
 
 def r_mean(values):
+    """Return the R-compatible corrected mean using an extended-precision residual sum."""
     a = np.asarray(values, dtype=np.longdouble)
     mean = np.sum(a) / len(a)
     return float(mean + np.sum(a - mean) / len(a))
@@ -178,6 +183,11 @@ def normal_upper_scalar(x):
 
 
 def normal_upper(values):
+    """Evaluate the retained standard-normal survival function elementwise.
+
+    Preserve ndarray shape and return a float for scalar input. Using the same
+    scalar approximation avoids changing the correlation fit through tail rounding.
+    """
     values = np.asarray(values, dtype=float)
     result = np.array([normal_upper_scalar(float(x)) for x in values.ravel()]).reshape(
         values.shape
@@ -186,6 +196,12 @@ def normal_upper(values):
 
 
 def normal_probit(values):
+    """Convert upper-tail probabilities to standard-normal scores.
+
+    Preserve input shape, propagate NaN, and map zero/one to positive/negative
+    infinity. Retain the central rational approximation and tail conventions
+    required by the original R p-value-combination fixtures.
+    """
     from statistics import NormalDist
 
     normal = NormalDist()

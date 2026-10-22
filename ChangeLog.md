@@ -148,3 +148,20 @@ requirements separated in `environment-legacy.yml` and `environment-legacy-r.yml
 Keep these optional interpreters in separate environments to avoid incompatible
 XML/ICU libraries. The retained RobustRankAggreg 1.1 oracle installs from its
 archived pure-R source, avoiding obsolete conda ABI pins.
+
+
+### Follow-up completeness audit — 2026-10-22
+
+Rechecked the original issue, Martin's full review and all review/inline-comment
+endpoints. The scientific changes above remain covered. The audit additionally:
+
+- Extends input preservation to generated-output basename collisions and symbolic
+  aliases, and prevents cleanup destinations from overwriting nested inputs.
+  Invalid input/output combinations fail before native prediction writes files.
+- Enforces IntaRNA >=3 independently at the homology, primary prediction and web
+  export entry points. Standalone helper use now has the same release requirement
+  as the complete workflow. Prediction caching uses the detected release even
+  when an old option file records another version.
+- Adds the remaining public helper/API documentation, including table schemas,
+  numerical precision, maintenance RNG scope and service-adapter side effects.
+  AGENTS.md records a requirement-by-requirement implementation/test map.

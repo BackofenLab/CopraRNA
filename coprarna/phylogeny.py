@@ -5,6 +5,11 @@ import re
 
 
 def transform_distance(path: Path) -> str:
+    """Return a PHYLIP-compatible matrix from the EMBOSS distmat report.
+
+    Restore the symmetric triangle, normalize accession case and preserve the
+    original zero filling, diagonal representation and numeric text formatting.
+    """
     matrix, organisms = {}, []
     width = None
     for index, line in enumerate(path.read_text().splitlines()[8:], 1):
@@ -31,6 +36,12 @@ def transform_distance(path: Path) -> str:
 
 
 def compute_weights(treefile: Path, neighborfile: Path) -> str:
+    """Return sorted organism weights from Newick and PHYLIP neighbor outputs.
+
+    Parse the retained branch/root conventions and recursively apportion subtree
+    lengths. Keep the original zero-length-tree fallback and seven-decimal output;
+    weights feed the comparative p-value combination and over-weight warnings.
+    """
     tree_length = 0.0
     for line in treefile.read_text().splitlines():
         for token in re.split(r"[:(),]", line):

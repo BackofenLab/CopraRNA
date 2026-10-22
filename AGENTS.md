@@ -61,3 +61,31 @@ Keep downloaded genomes compressed and reuse shared database paths directly.
   release checks and CI are recorded in the follow-up PR.
 - Live external service availability is not certified. Offline adapters retain
   request tests. New dependencies/UI versions must be checked before pin updates.
+
+
+## Completeness audit — 2026-10-22
+
+The original issue and latest review were checked together; the current review
+supersedes historical defaults only where explicitly requested. Original sources
+remain subject to the checksum test. No additional inline review requests exist.
+
+| Requested behavior | Implementation and verification |
+| --- | --- |
+| Current comparative runtime only | `Config`, helper registry and `migration.json`; retired mode/fixtures removed, 39 active and 2 retired mappings verified by `test_inventory.py` and `test_review.py`. |
+| IntaRNA >=3 and sTar default | `parameters.check_version`, native homology/prediction/web entry points; old releases rejected before side effects, plus real native workflow tests. |
+| File/inline native parameters | `parameters.parameter_file`/`arguments`; mutual exclusion, exact snapshots, temporary-file lifetime and native file/inline equivalence tests. |
+| Native CSV and no duplicate CLI settings | `intarna.py`, `webserver.py`, `cli.py`; gzip CSV parsing and retired CLI flag checks. |
+| Current dependency interfaces | Fresh `environment.yml`, native BLAST+/DomClust integrations, exact retained numerical fixtures, Python 3.11–3.13 CI and separate optional oracle environments. |
+| Compressed intermediates/genomes | `io.py`, `ncbi.py`, native `.csv.gz` producers; streamed HTTP gzip/plain handling, atomic truncation rejection, direct cache reuse and concurrent-access tests. |
+| Python tree SVG | `phylogeny.render_tree`; SVG vector-path contract and native output checks. |
+| PDF/SVG diagrams, no PostScript | Python plotting and enrichment; matching vector files, all extended pages, no embedded raster images and browser adapter tests. |
+| Original FASTA preservation | Working copy, output-name/symlink collision preflight and guarded cleanup sources/destinations; failure-path and complete native tests. |
+| Shared compressed genome database | `--genome-db`, manifest and per-accession locking; two real jobs share one cache without copying genomes. |
+| Remove near-full-length perfect helices | `filter_perfect_helices` before GEV and web selection; boundary/loop cases, native helix and discarded-best-hit report regressions. |
+| Function/inline documentation | Public module API docstrings, numerical/interface comments and directives above. |
+| Rewrite and fix ChangeLog | `ChangeLog.md` identifies source version, architecture and each fix/change; included in sdist. |
+| Original issue CLI/package/mappings | Separate rewrite and fix PRs, isolated batches, per-script sidecars, wheel/sdist and installed native prediction checks. |
+
+When adding outputs, update `io._JOB_OUTPUTS` and preserve both original inputs
+and any cleanup destination that resolves to them. Keep every independent native
+entry point's version check and detected-version cache signature in place.

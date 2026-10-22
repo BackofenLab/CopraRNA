@@ -20,7 +20,7 @@ coprarna --version
 ```
 
 The reviewed dependency versions are listed below. IntaRNA must be version 3 or
-newer. Production controllers run Python and native scientific tools; they do
+newer, including standalone native prediction helpers. Production controllers run Python and native scientific tools; they do
 not invoke the original scripts. Native packages can have transitive interpreter
 dependencies. The environment specification is not a cross-platform lockfile or
 a published Bioconda package.
@@ -54,7 +54,10 @@ loads its upstream JavaScript dependencies when opened in a browser.
 Prepare at least three homologous sRNAs in FASTA. Each record ID must be an
 organism RefSeq accession in the bundled availability table. Use a separate job
 directory for each run. The original input FASTA stays at its original path,
-byte unchanged; a normalized working copy is stored under `FASTA/`.
+byte unchanged; a normalized working copy is stored under `FASTA/`. Input names
+that collide with required job outputs (including symlink aliases) are rejected
+before those outputs are written. Cleanup also checks report destinations so it
+cannot move a generated file over an input in a subfolder.
 
 ```bash
 coprarna run --workdir /data/job-a --srnaseq input_sRNA.fa --cores 8 \

@@ -37,6 +37,12 @@ def _json_string(value):
 
 
 def heatmap_json(path: Path) -> str:
+    """Write copraRNA.json from the retained enrichment membership table.
+
+    The first three lines define clusters, dimensions and feature labels. Each
+    remaining membership becomes a colored JSON cell; corrected production escapes
+    labels safely while an explicit historical helper context preserves old bytes.
+    """
     lines = path.read_text().splitlines()
     groups, parameters, header = (line.split("\t") for line in lines[:3])
     group_text = ";".join(
@@ -69,6 +75,11 @@ def heatmap_json(path: Path) -> str:
 
 
 def specific_targets(directory: Path) -> str:
+    """Return enriched-term targets found only in the organism-specific prediction.
+
+    Compare DAVID cluster/chart reports with the annotated IntaRNA table, retaining
+    the original GeneID lookup and output field ordering for helper parity.
+    """
     main, single = {}, {}
     score = 0.0
     for line in (directory / "termClusterReport.txt").read_text().splitlines():

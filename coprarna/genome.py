@@ -1,6 +1,7 @@
 """GenBank helpers preserving the legacy coordinate and boundary conventions."""
 
 from pathlib import Path
+from dataclasses import dataclass
 import re
 
 from .io import genbank_records, accession
@@ -76,13 +77,51 @@ def get_region(
     return f">{tag}\n{value}\n"
 
 
-def parse_regions(path: Path, up: int, down: int, region: str) -> str:
-    """Extract each CDS target region from streamed GenBank records.
+@dataclass(frozen=True)
+class TargetRegion:
+    """A strand-oriented target with a 0-based, half-open prediction interval.
 
-    Coordinates follow the original 1-based inclusive flank conventions, with
-    strand, circular wrap and compound CDS handling. Each feature uses its own
-    record's sequence; the input file is not modified."""
-    output = []
+    ``sequence`` includes genomic accessibility context; ``requested`` excludes
+    it. Instances are in-memory values and never modify their GenBank source.
+    """
+
+    tag: str
+    sequence: str
+    start: int
+    end: int
+
+    @property
+    def requested(self) -> str:
+        """Return only the requested target sequence, without accessibility flanks."""
+        return self.sequence[self.start : self.end]
+
+
+def _genomic_slice(sequence, start, end, circular):
+    # Context may cross either end or more than one circular origin. Linear
+    # records stop at their physical ends; never fabricate missing nucleotides.
+    if circular:
+        length = len(sequence)
+        offset = start % length
+        return (sequence * ((offset + end - start + length - 1) // length))[
+            offset : offset + end - start
+        ]
+    return sequence[max(0, start) : min(len(sequence), end)]
+
+
+def extract_targets(
+    path: Path, up: int, down: int, region: str, context: int | None = 0
+):
+    """Yield requested CDS regions with additional genomic accessibility context.
+
+    Preserve the established requested-region sequence, including spliced CDS
+    order and omission of truncated UTRs shorter than 150 nt. Add ``context`` bases
+    at both biological ends, wrapping circular records and clipping linear ones.
+    None requests a full replicon length on each side for an unlimited span.
+    TargetRegion coordinates are 0-based, half-open within the extended sequence.
+    Stream compressed/plain GenBank without modifying it; reject negative context.
+    """
+    if context is not None and context < 0:
+        raise ValueError("Accessibility context must be nonnegative")
     for record in genbank_records(path):
         source = str(record.seq)
         circular = record.annotations.get("topology") == "circular"
@@ -106,10 +145,20 @@ def parse_regions(path: Path, up: int, down: int, region: str) -> str:
 
             if region == "5utr":
                 pos = int(parts[0].start) + 1 if strand == 1 else int(parts[-1].end)
-                output.append(flank(pos, up, down))
+                requested = flank(pos, up, down)
+                left, right = (
+                    (pos - up - 1, pos + down - 1)
+                    if strand == 1
+                    else (pos + up, pos - down)
+                )
             elif region == "3utr":
                 pos = int(parts[-1].end) + 1 if strand == 1 else int(parts[0].start)
-                output.append(flank(pos, up, down))
+                requested = flank(pos, up, down)
+                left, right = (
+                    (pos - up - 1, pos + down - 1)
+                    if strand == 1
+                    else (pos + up, pos - down)
+                )
             elif region == "cds":
                 protein_region = str(feature.extract(record.seq))
                 # Perl spliced_seq is returned in biological order, independent of
@@ -144,8 +193,45 @@ def parse_regions(path: Path, up: int, down: int, region: str) -> str:
                     ).split("\n", 1)[1]
                     if start == 1:
                         after = after[1:]
-                output.append(before + protein_region + after)
-    return "".join(output)
+                requested = before + protein_region + after
+                left, right = (
+                    (int(parts[0].start) - up, int(parts[-1].end) + down)
+                    if strand == 1
+                    else (int(parts[-1].end) + up, int(parts[0].start) - down)
+                )
+            else:
+                raise ValueError(f"Unknown target region: {region}")
+            if not requested:
+                continue
+            sequence = requested.split("\n", 1)[1].rstrip("\n")
+            if not circular:
+                left, right = (min(len(source), max(0, p)) for p in (left, right))
+            amount = len(source) if context is None else context
+            if strand == 1:
+                before = _genomic_slice(source, left - amount, left, circular)
+                after = _genomic_slice(source, right, right + amount, circular)
+            else:
+                before = _reverse_complement(
+                    _genomic_slice(source, left, left + amount, circular)
+                )
+                after = _reverse_complement(
+                    _genomic_slice(source, right - amount, right, circular)
+                )
+            yield TargetRegion(
+                tag, before + sequence + after, len(before), len(before) + len(sequence)
+            )
+
+
+def parse_regions(path: Path, up: int, down: int, region: str) -> str:
+    """Return requested CDS FASTA regions without accessibility context.
+
+    Preserve the established 1-based flank conventions, strand, circular wrap,
+    spliced CDS and short-truncated-UTR exclusion. Stream compressed/plain
+    GenBank records without writing files; invalid coordinates raise ValueError.
+    """
+    return "".join(
+        f">{r.tag}\n{r.requested}\n" for r in extract_targets(path, up, down, region)
+    )
 
 
 def check_gene_cds(path: Path, display_name: str | None = None) -> str:

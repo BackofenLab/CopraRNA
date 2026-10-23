@@ -191,14 +191,36 @@ def export_prediction(directory, ooi, up, down):
     Forward the same parameter file and interaction count as the primary run.
     Apply the same artificial-helix filter before choosing one retained native
     interaction per target for the frontend. This prevents a removed best hit
-    from reappearing when the comparative result used a retained suboptimal hit."""
+    from reappearing when the comparative result used a retained suboptimal hit.
+    Require the main run's context sidecar, reuse its extended genomic sequences
+    and restrict/rebase interactions to the requested region. A missing or stale
+    sidecar fails before native prediction rather than losing accessibility context.
+    """
     from Bio import SeqIO
+    from .genome import TargetRegion
+    from .intarna import _predict_targets
 
     parameters.check_version(directory)
     path = directory / f"{ooi}_upfromstartpos_{up}_down_{down}.fa"
     records = list(SeqIO.parse(path, "fasta"))
     lines = (directory / "CopraRNA_result.csv").read_text().splitlines()[1:]
     tags = [line.split(",")[2].split("(")[0] for line in lines if line.split(",")[2]]
+    context_path = Path(str(path) + ".context.json")
+    if not context_path.is_file():
+        raise ValueError("Missing genomic accessibility context; rerun prepare-intarna")
+    context = {
+        r["tag"]: TargetRegion(**r) for r in json.loads(context_path.read_text())
+    }
+    selected = []
+    for tag in dict.fromkeys(t.casefold() for t in tags):
+        for record in records:
+            if tag == record.id.casefold():
+                target = context[record.id]
+                if target.requested != str(record.seq):
+                    raise ValueError(
+                        f"Stale genomic accessibility context for {record.id}"
+                    )
+                selected.append(target)
     (directory / "CopraRNA_top_targets.fa").write_text(
         "".join(
             f">{r.id}\n{r.seq}\n"
@@ -208,20 +230,13 @@ def export_prediction(directory, ooi, up, down):
         )
     )
     columns = "id1,seq1,id2,seq2,bpList,E,ED1,ED2,seedStart1,seedEnd1,seedStart2,seedEnd2,hybridDP,start1,end1,start2,end2"
-    command(
-        [
-            parameters.PERSONALITY,
-            *parameters.arguments(directory),
-            "--target",
-            "CopraRNA_top_targets.fa",
-            "--query",
-            f"ncRNA_{ooi}.fa",
-            "--outMode=C",
-            "--outCsvCols=" + columns,
-            *([] if "outNumber" in parameters.values(directory) else ["--outNumber=2"]),
-            "--out=IntaRNA_web.csv.gz",
-        ],
+    _predict_targets(
+        selected,
+        f"ncRNA_{ooi}.fa",
+        "IntaRNA_web.csv.gz",
         directory,
+        columns,
+        runner=command,
     )
     from .rcompat import read_table
 

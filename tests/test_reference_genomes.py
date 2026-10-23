@@ -62,3 +62,13 @@ def test_reference_genome_regions(path):
         assert parsed
         assert all(r.id in tags and len(r) > 0 for r in parsed)
         assert all(set(str(r.seq).upper()) <= set("ACGTRYSWKMBDHVN") for r in parsed)
+        extended = list(genome.extract_targets(path, 200, 100, region, 100))
+        assert [(r.tag, r.requested) for r in extended] == [
+            (r.id, str(r.seq)) for r in parsed
+        ]
+        assert all(
+            0 <= r.start <= 100 and 0 <= len(r.sequence) - r.end <= 100
+            for r in extended
+        )
+        if record.annotations.get("topology") == "circular":
+            assert all(r.start == len(r.sequence) - r.end == 100 for r in extended)

@@ -352,6 +352,18 @@ def test_web_export_cannot_reintroduce_a_filtered_perfect_helix(tmp_path, monkey
     (tmp_path / "NC_000001_upfromstartpos_200_down_100.fa").write_text(
         ">tag\n" + "C" * 32 + "\n"
     )
+    (tmp_path / "NC_000001_upfromstartpos_200_down_100.fa.context.json").write_text(
+        json.dumps(
+            [
+                dict(
+                    tag="tag",
+                    sequence="A" * 100 + "C" * 32 + "A" * 100,
+                    start=100,
+                    end=132,
+                )
+            ]
+        )
+    )
     (tmp_path / "CopraRNA_option_file.txt").write_text("intarna parameter file:\n")
     (tmp_path / "CopraRNA_result.csv").write_text(
         "fdr,p-value,NC_000001,Annotation,Additional homologs,Amount sampled\n"
@@ -360,16 +372,19 @@ def test_web_export_cannot_reintroduce_a_filtered_perfect_helix(tmp_path, monkey
 
     def native(arguments, directory):
         assert "--outNumber=2" in arguments
+        assert "--tRegion=1-32" in arguments
+        assert "--tIdxPos0=-100" in arguments
         fields = next(
             arg.split("=", 1)[1] for arg in arguments if arg.startswith("--outCsvCols=")
         ).split(",")
-        with open_text(directory / "IntaRNA_web.csv.gz", "wt") as stream:
+        with open_text(arguments[arguments.index("--out") + 1], "wt") as stream:
             writer = csv.DictWriter(stream, fields, delimiter=";", lineterminator="\n")
             writer.writeheader()
             for pairs, score in [(32, -100), (10, -12)]:
                 record = dict.fromkeys(fields, "0")
                 record.update(
                     row(pairs, query=32, target=32),
+                    seq1="A" * 100 + "C" * 32 + "A" * 100,
                     id1="tag",
                     id2="query",
                     bpList="".join(f"({i},{33 - i})" for i in range(1, pairs + 1)),

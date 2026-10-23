@@ -80,8 +80,12 @@ def arguments(directory):
 
 
 def values(directory):
-    """Accessibility windows for the post-prediction artificial-helix check."""
-    result = {"tAccW": "150", "qAccW": "150"}
+    """Read native settings with IntaRNAsTar accessibility defaults and aliases.
+
+    No files are written. Resolve shared accW/accL settings as IntaRNA does and
+    reject conflicting per-RNA values rather than computing different flanks.
+    """
+    result = {}
     configured = options(directory).get("intarna parameter file", "")
     path = (
         Path(configured) if configured else Path(directory) / "IntaRNA_parameters.txt"
@@ -94,4 +98,27 @@ def values(directory):
             if "=" in line:
                 key, value = line.split("=", 1)
                 result[key.strip()] = value.strip()
+    for shared, default in (("accW", "150"), ("accL", "100")):
+        for prefix in ("t", "q"):
+            specific = prefix + shared[0].upper() + shared[1:]
+            if shared in result:
+                if specific in result and int(result[specific]) != int(result[shared]):
+                    raise ValueError(f"IntaRNA {shared} and {specific} must agree")
+                result[specific] = result[shared]
+            else:
+                result.setdefault(specific, default)
     return result
+
+
+def target_context(directory):
+    """Return target accessibility flank length, or None for an unlimited span.
+
+    IntaRNAsTar defaults to tAccL=100. Native zero means use tAccW (default 150);
+    both zero require full-replicon context. Read settings without modifying them
+    and reject invalid/negative spans before genomic extraction or native writes.
+    """
+    settings = values(directory)
+    span, window = int(settings["tAccL"]), int(settings["tAccW"])
+    if span < 0 or window < 0:
+        raise ValueError("IntaRNA accessibility span and window must be nonnegative")
+    return span or window or None

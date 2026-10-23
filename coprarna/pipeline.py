@@ -141,7 +141,7 @@ def _cleanup(directory, config):
         ):
             path.unlink()
     for subdir, patterns in [
-        ("IntaRNA", ["*.fa.intarna.csv.gz", "*.filter.json"]),
+        ("IntaRNA", ["*.fa.intarna.csv.gz", "*.filter.json", "*.fa.context.json"]),
         ("Phylogeny", ["compatible.*", "16s_sequences.*"]),
         ("FASTA", ["*.fa"]),
         ("Regions_plots", ["*regions*"] + (["thumbnail_*"] if config.websrv else [])),

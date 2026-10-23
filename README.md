@@ -237,6 +237,32 @@ removed after success or failure. CopraRNA owns the native input/output paths,
 CSV format and required columns. It requests two interactions unless `outNumber`
 is supplied. Native options are not duplicated as CopraRNA flags.
 
+Genomic targets include extra sequence on both sides for accessibility calculation:
+the maximum target base-pair span `tAccL` (100 nt with IntaRNAsTar defaults), or the
+shared `accL` setting. With `tAccL=0`, the flank uses `tAccW` (150 nt by default,
+also configurable through `accW`). If both are zero, the context covers the whole
+available linear replicon, or one full turn on each side of a circular target;
+this unlimited setting can be expensive for genome-wide prediction. Circular
+context wraps around the origin; linear context stops at the physical chromosome
+ends. The same rules apply to 5′ UTR, 3′ UTR and spliced CDS targets, on both strands.
+The existing exclusion of truncated UTR targets shorter than 150 nt is unchanged.
+
+CopraRNA sets IntaRNA's `--tRegion` to allow interactions only within the requested
+region, and controls `tIdxPos0`/`qIdxPos0` so report coordinates start at 1. Targets
+with different allowed intervals run in separate native batches. Accessibility is
+computed on the extended sequence, including for web exports. FASTAs, interaction
+CSVs, perfect-helix filtering, comparative statistics, alignments and plots use only
+the requested sequence and coordinates; `E_norm` uses the requested target length.
+Accessibility energies and probabilities retain the extra context's contribution,
+so predicted interactions and rankings can change from earlier runs.
+
+Each target FASTA has a `.fa.context.json` sidecar containing the extended sequence
+and its 0-based, half-open requested interval. These sidecars participate in cache
+signatures and are retained in `IntaRNA/` after cleanup; temporary native inputs are
+removed after success or failure. Existing predictions without this context must
+be recomputed. Regenerate predictions before calling
+`webserver.export_prediction()` independently on an old job.
+
 Before fitting energy distributions, CopraRNA discards gap-free, stacking-only
 perfect helices spanning at least 90% of either RNA's effective length. Effective
 length is the smaller of sequence length and a positive `tAccW`/`qAccW`; zero

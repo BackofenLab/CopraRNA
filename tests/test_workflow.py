@@ -182,10 +182,43 @@ def test_file_and_inline_parameters_produce_identical_predictions(
             for line in (job / "genome_paths.txt").read_text().splitlines()
         )
         assert not list(job.glob("*.gb*"))
+        # Native context is retained separately; every downstream FASTA and CSV
+        # uses the originally requested 200+100 nt region and 1-based positions.
+        import csv
+        import json
+        from Bio import SeqIO
+        from coprarna.io import open_text
+
+        sidecars = list(job.glob("*.fa.context.json"))
+        assert len(sidecars) == 3
+        for sidecar in sidecars:
+            targets = json.loads(sidecar.read_text())
+            requested = {
+                r.id: str(r.seq)
+                for r in SeqIO.parse(
+                    str(sidecar).removesuffix(".context.json"), "fasta"
+                )
+            }
+            assert all(
+                (r["start"], r["end"], len(r["sequence"])) == (60, 360, 420)
+                for r in targets
+            )
+            assert all(r["sequence"][60:360] == requested[r["tag"]] for r in targets)
+        for output in [*job.glob("*.fa.intarna.csv.gz"), job / "IntaRNA_web.csv.gz"]:
+            with open_text(output) as stream:
+                rows = list(csv.DictReader(stream, delimiter=";"))
+            assert rows
+            assert all(
+                len(r["seq1"]) == 300 and 1 <= int(r["start1"]) <= int(r["end1"]) <= 300
+                for r in rows
+            )
         for pdf in job.glob("*.pdf"):
             assert pdf.with_suffix(".svg").is_file()
     assert calls and all(contents == parameter_text for _, _, contents in calls)
     assert len(calls) == 8  # Three organisms and one web export in each job.
+    assert all(
+        "--tIdxPos0=-60" in args and "--tRegion=1-300" in args for args, _, _ in calls
+    )
     assert all(
         path.exists() if path == supplied else not path.exists() for _, path, _ in calls
     )
@@ -242,6 +275,13 @@ def test_corrected_workflow_builds_clusters_preserves_inputs_and_exports_vectors
     assert not (job / "cluster.members").exists()
     assert not (job / "target_alignments").exists()
     assert len(list((job / "IntaRNA").glob("*.csv.gz"))) == 3
+    sidecars = list((job / "IntaRNA").glob("*.fa.context.json"))
+    assert len(sidecars) == 3
+    assert all(
+        r["start"] == 100 and r["end"] == 400 and len(r["sequence"]) == 500
+        for path in sidecars
+        for r in json.loads(path.read_text())
+    )
     tree = job / "Phylogeny/compatible.treefile"
     assert tree.is_file() and tree.with_suffix(".treefile.svg").is_file()
     for pdf in job.rglob("*.pdf"):

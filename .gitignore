@@ -1,1 +1,9 @@
 /.project
+
+__pycache__/
+*.py[cod]
+.pytest_cache/
+build/
+dist/
+*.egg-info/
+core_genome_archive/metadata/*.lock

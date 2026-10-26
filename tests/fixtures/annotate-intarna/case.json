@@ -7,5 +7,6 @@
   ],
   "modules": [
     "Bio::SeqIO"
-  ]
+  ],
+  "helper": "annotate-intarna"
 }

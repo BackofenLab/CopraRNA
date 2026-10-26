@@ -1,0 +1,20 @@
+[
+  {
+    "replicons": [
+      "NC_000913"
+    ],
+    "organism": "Escherichia coli str. K-12 substr. MG1655"
+  },
+  {
+    "replicons": [
+      "NC_000964"
+    ],
+    "organism": "Bacillus subtilis subsp. subtilis str. 168"
+  },
+  {
+    "replicons": [
+      "NC_002516"
+    ],
+    "organism": "Pseudomonas aeruginosa PAO1"
+  }
+]

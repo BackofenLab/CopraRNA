@@ -1,9 +1,7 @@
-include AGENTS.md ChangeLog.md README.2.md README.md LICENSE environment*.yml CopraRNA2.pl CopraRNA2.pl.md .gitignore copra_sRNA.jpg
-recursive-include coprarna *.py *.json *.txt *.gz
-recursive-include coprarna_aux *.pl *.R *.py *.js *.html *.txt *.csv *.md
-recursive-include core_genome_archive *.bz2
-recursive-include update_kegg2refseq *.pl *.sh *.txt *.csv *.md
+include AGENTS.md ChangeLog.md README.md LICENSE environment.yml .gitignore
+recursive-include coprarna *.py *.txt *.html
+recursive-include core_genome_archive *.gz *.json
 recursive-include tests *.py
 recursive-include tests/fixtures *
 recursive-include tools *.py
-global-exclude __pycache__ *.py[cod]
+global-exclude __pycache__ *.py[cod] *.lock

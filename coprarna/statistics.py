@@ -1,6 +1,6 @@
 """Validated deterministic statistical preprocessing from the legacy R scripts.
 
-GEV fitting and correlated p-value joining have separate migration requirements;
+GEV fitting and correlated p-value joining have separate numerical contracts;
 no substitute numerical algorithm is used here.
 """
 

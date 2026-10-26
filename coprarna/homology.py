@@ -2,6 +2,7 @@
 
 from pathlib import Path
 import shutil
+import json
 from Bio import SeqIO
 
 from . import (
@@ -15,22 +16,23 @@ from . import (
     parameters,
     ncbi,
     resources,
+    organisms,
     statistics,
     tables,
 )
 from .runtime import command, options
 
 
-def affiliations():
-    """Map each known accession to its organism's ordered chromosome/plasmid list."""
-    result = {}
-    for line in resources.organism_mapping().splitlines():
-        if "\t" not in line:
-            continue
-        code, ids = line.split("\t")
-        for identifier in ids.split():
-            result[identifier] = ids.split()
-    return result
+def protein_code(index):
+    """Return a job-local four-letter DomClust species ID for a zero-based index.
+
+    Native species-name buffers cannot hold full versioned assembly IDs. Four
+    lowercase letters keep the validated interface while avoiding a global code
+    catalog. Reject negative indices or more than 26**4 organisms; write no files.
+    """
+    if not 0 <= index < 26**4:
+        raise ValueError("DomClust species index must be between 0 and 26**4 - 1")
+    return "".join(chr(97 + index // 26**power % 26) for power in (3, 2, 1, 0))
 
 
 def domclust_table(members, gene_table):
@@ -74,23 +76,56 @@ def domclust_table(members, gene_table):
 def run_domclust(directory):
     """Build cluster.tab from supported DomClust memberships and protein metadata.
 
-    Production puts flags before files and uses mode 9. Mode 5 is available only
-    inside the explicitly requested historical helper comparison context."""
-    from .compatibility import legacy_enabled
+    Put flags before positional files and convert supported mode-9 memberships
+    to the tabular cluster layout consumed by the Python scientific stages.
+    """
+    command(
+        [
+            "domclust",
+            "-HO",
+            "-S",
+            "-c60",
+            "-p0.5",
+            "-V0.6",
+            "-C80",
+            "-o9",
+            "all.fas.hom",
+            "all.fas.gene",
+        ],
+        directory,
+        output="cluster.members",
+    )
+    table = domclust_table(
+        (directory / "cluster.members").read_text(),
+        (directory / "all.fas.gene").read_text(),
+    )
+    (directory / "cluster.tab").write_text(table)
 
-    flags = ["-HO", "-S", "-c60", "-p0.5", "-V0.6", "-C80"]
-    files = ["all.fas.hom", "all.fas.gene"]
-    if legacy_enabled():
-        command(["domclust", *files, *flags, "-o5"], directory, output="cluster.tab")
-    else:
-        command(
-            ["domclust", *flags, "-o9", *files], directory, output="cluster.members"
-        )
-        table = domclust_table(
-            (directory / "cluster.members").read_text(),
-            (directory / "all.fas.gene").read_text(),
-        )
-        (directory / "cluster.tab").write_text(table)
+
+def _finalize_result_table(path):
+    """Publish a result CSV with empty missing cells and no internal sort column.
+
+    Rewrite ``path`` in place, converting only complete ``NA`` fields so text that
+    happens to contain those letters is unchanged. Return the removed sort-column
+    values for the optional webserver alignment map. Reject empty or malformed
+    input rather than silently publishing a shifted table.
+    """
+    lines = path.read_text().splitlines()
+    fields = [line.split(",") for line in lines]
+    if not fields or any(len(row) < 2 for row in fields):
+        raise ValueError(f"Malformed result table: {path}")
+    internal_sorting = [row[-1] for row in fields]
+    published = [
+        ["" if cell == "NA" else cell for cell in row[:-1]] for row in fields
+    ]
+    text = "\n".join(",".join(row) for row in published) + "\n"
+    text = (
+        text.replace(",Additional.homologs,", ",Additional homologs,")
+        .replace(",Amount.sampled", ",Amount sampled")
+        .replace("p.value", "p-value")
+    )
+    path.write_text(text)
+    return internal_sorting
 
 
 def run_homology(
@@ -109,20 +144,37 @@ def run_homology(
     select the requested comparative ranking, then add optional web/enrichment data."""
     parameters.check_version(directory)
     opt = options(directory)
-    mapping = affiliations()
+    database = opt.get("genome database") or directory / "genomes"
+    metadata = organisms.resolve_many(accessions, database)
+    metadata = [
+        dict(item, protein_code=protein_code(i)) for i, item in enumerate(metadata)
+    ]
+    (directory / "genome_metadata.json").write_text(
+        json.dumps(metadata, indent=2) + "\n"
+    )
+    mapping = {m["query"]: m["replicons"] for m in metadata}
+    primary = {
+        identifier: replicons[0].split(".")[0]
+        for identifier, replicons in mapping.items()
+    }
+    records = list(SeqIO.parse(srna, "fasta"))
+    # All comparative stages index sRNAs by the primary chromosome, including
+    # when a user supplies a plasmid, a versioned sequence or an assembly ID.
+    (directory / "resolved_sRNA.fa").write_text(
+        "".join(f">{primary[record.id]}\n{record.seq}\n" for record in records)
+    )
+    (directory / "ncrna.fa").write_text(
+        "".join(f">ncRNA_{primary[record.id]}\n{record.seq}\n" for record in records)
+    )
     groups = []
-    text = srna.read_text().replace(">", ">ncRNA_")
-    for identifier in accessions:
-        text = text.replace(identifier, mapping[identifier][0])
-    (directory / "ncrna.fa").write_text(text)
-    database = opt.get("genome database") or None
-    for identifier in accessions:
-        groups.append(
-            ",".join(
-                str(ncbi.genome_path(replicon, directory, database))
-                for replicon in mapping[identifier]
-            )
-        )
+    codes = {}
+    for item in metadata:
+        group = [
+            ncbi.genome_path(replicon, directory, database)
+            for replicon in item["replicons"]
+        ]
+        groups.append(",".join(str(path) for path in group))
+        codes.update({path: item["protein_code"] for path in group})
     genomes = sorted(
         {Path(filename) for group in groups for filename in group.split(",")},
         key=lambda path: path.name,
@@ -137,11 +189,7 @@ def run_homology(
     if not (directory / "cluster.tab").exists():
         with (directory / "all.fas").open("a") as stream:
             for path in genomes:
-                stream.write(
-                    genome.extract_proteins(
-                        path, resources.organism_mapping(), path.name
-                    )
-                )
+                stream.write(genome.extract_proteins(path, organism=codes[path]))
         records = list(SeqIO.parse(directory / "all.fas", "fasta"))
         # The legacy uniq -d detects only adjacent repeated FASTA headers.
         duplicates = [a.id for a, b in zip(records, records[1:]) if a.id == b.id]
@@ -230,7 +278,7 @@ def run_homology(
     )
     result = prefix + "_anno_addhomologs_padj_amountsamp.csv"
     (directory / result).write_text(tables.add_sampled_count(directory / name3))
-    ooi = mapping[accessions[0]][0]
+    ooi = mapping[accessions[0]][0].split(".")[0]
     alignments.align_targets(
         directory / "CopraRNA2_prep_anno_addhomologs_padj_amountsamp.csv", directory
     )
@@ -297,18 +345,11 @@ def run_homology(
     plot_evolutionary_heatmap(directory)
     for filename in ("CopraRNA_result.csv", "CopraRNA_result_all.csv"):
         path = directory / filename
-        lines = path.read_text().splitlines()
+        internal_sorting = _finalize_result_table(path)
         if filename == "CopraRNA_result.csv" and int(opt["websrv"]):
             (directory / "CopraRNA_result.map_evo_align").write_text(
-                "\n".join(line.split(",")[-1] for line in lines) + "\n"
+                "\n".join(internal_sorting) + "\n"
             )
-        text = "\n".join(",".join(line.split(",")[:-1]) for line in lines) + "\n"
-        text = (
-            text.replace(",Additional.homologs,", ",Additional homologs,")
-            .replace(",Amount.sampled", ",Amount sampled")
-            .replace("p.value", "p-value")
-        )
-        path.write_text(text)
     if int(opt["websrv"]):
         from .webserver import export_prediction
 

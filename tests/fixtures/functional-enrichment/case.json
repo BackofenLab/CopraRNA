@@ -8,5 +8,6 @@
   ],
   "outputs": [
     "enrichment.txt"
-  ]
+  ],
+  "helper": "functional-enrichment"
 }

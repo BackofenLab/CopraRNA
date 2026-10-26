@@ -1,4 +1,4 @@
-name: Python migration
+name: CopraRNA 3
 on:
   push:
   pull_request:
@@ -35,7 +35,7 @@ jobs:
           /tmp/coprarna-wheel/bin/python -m pip install --force-reinstall --no-deps dist/*.whl
           cd /tmp
           /tmp/coprarna-wheel/bin/coprarna --version
-          /tmp/coprarna-wheel/bin/coprarna status
+          /tmp/coprarna-wheel/bin/coprarna helpers
           /tmp/coprarna-wheel/bin/coprarna helper archive-readme
 
   scientific:
@@ -57,4 +57,5 @@ jobs:
         env:
           COPRARNA_PIPELINE_TESTS: '1'
           COPRARNA_BROWSER_TESTS: '1'
+          COPRARNA_REFERENCE_TESTS: '1'
         run: python -m pytest -q

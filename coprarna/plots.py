@@ -7,7 +7,7 @@ import re
 import tempfile
 import numpy as np
 from Bio import SeqIO
-from .runtime import options, command
+from .runtime import options, command, srna_input
 from .rcompat import read_table, load_rdata
 from .conservation import organism_names
 
@@ -158,17 +158,8 @@ def plot_interaction_regions(path: Path, number: int, directory: Path) -> str:
     Clamp requested counts to available predictions. Extended PDFs use 25 clusters
     per page; their SVG companion includes every page in the same order."""
     opt = options(directory)
-    # Retain the legacy lowercase-CDS plotting failure; fixed separately.
-    from .compatibility import legacy_enabled
-
-    if opt["region"] == "cds" and legacy_enabled():
-        raise ValueError(
-            "Legacy region plotting does not initialize center for lowercase cds"
-        )
     header, rows = read_table(path)
-    if len(rows) < max(15, number) and legacy_enabled():
-        raise ValueError("Legacy region plotting indexes beyond available predictions")
-    number = max(15, number) if legacy_enabled() else min(max(15, number), len(rows))
+    number = min(max(15, number), len(rows))
     if number == 0:
         raise ValueError("No predictions available to plot")
     data, labels, orgs = region_plot_data(path, number, directory)
@@ -389,7 +380,7 @@ def evolutionary_heatmap_data(directory: Path, **settings):
             [
                 "clustalo",
                 "-i",
-                options(directory).get("working sRNA FASTA", "input_sRNA.fa"),
+                srna_input(directory),
                 "--distmat-out=distmatout1.txt",
                 "--full",
                 "--use-kimura",

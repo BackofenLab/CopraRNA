@@ -10,11 +10,11 @@ import xml.etree.ElementTree as ET
 
 import pytest
 
-from coprarna import genome, intarna, ncbi, parameters, pipeline, phylogeny
+from coprarna import genome, homology, intarna, ncbi, parameters, pipeline, phylogeny
 from coprarna.cli import main
 from coprarna.helpers import HELPERS
 from coprarna.io import open_text, read_text, write_text
-from tests.support.legacy import FIXTURES
+from tests.support.fixtures import FIXTURES
 
 
 def test_retired_mode_and_native_parameters_are_not_advertised(capsys):
@@ -217,8 +217,6 @@ def test_download_is_streamed_and_kept_compressed(tmp_path, server_gzip):
     stream = Stream(gzip.compress(content) if server_gzip else content)
     stream.headers = {"Content-Encoding": "gzip"} if server_gzip else {}
     responses = [
-        BytesIO(b"<eSearchResult><IdList><Id>1</Id></IdList></eSearchResult>"),
-        BytesIO(b"<eSummaryResult/>"),
         stream,
     ]
 
@@ -235,8 +233,6 @@ def test_download_is_streamed_and_kept_compressed(tmp_path, server_gzip):
 
 def test_truncated_download_is_not_cached(tmp_path):
     responses = [
-        BytesIO(b"<eSearchResult><IdList><Id>1</Id></IdList></eSearchResult>"),
-        BytesIO(b"<eSummaryResult/>"),
         BytesIO(b"LOCUS unfinished\n"),
     ]
     target = tmp_path / "NC_000001.gb.gz"
@@ -308,7 +304,20 @@ def test_prediction_cache_signature_tracks_contents_not_paths(tmp_path):
     assert intarna.prediction_signature(tmp_path, "target.fa", "query.fa") != first
 
 
-def test_report_retains_missing_comparative_pvalues(tmp_path):
+def test_final_result_tables_publish_missing_values_as_empty_fields(tmp_path):
+    path = tmp_path / "CopraRNA_result.csv"
+    path.write_text(
+        "fdr,p.value,NC_000001,Annotation,Additional.homologs,Amount.sampled,initial_sorting\n"
+        "NA,NA,,containsNA,NA,0,7\n"
+    )
+    assert homology._finalize_result_table(path) == ["initial_sorting", "7"]
+    assert path.read_text() == (
+        "fdr,p-value,NC_000001,Annotation,Additional homologs,Amount sampled\n"
+        ",,,containsNA,,0\n"
+    )
+
+
+def test_web_report_publishes_missing_comparative_pvalues_as_empty_fields(tmp_path):
     from coprarna.webserver import prepare_webserver_output
     import shutil
 
@@ -319,12 +328,16 @@ def test_report_retains_missing_comparative_pvalues(tmp_path):
     lines = result.read_text().splitlines()
     fields = lines[1].split(",")
     fields[:2] = ["NA", "NA"]
+    fields[-2] = "NA"
     lines[1] = ",".join(fields)
     result.write_text("\n".join(lines) + "\n")
     prepare_webserver_output(result, interactions, tmp_path)
-    assert (tmp_path / "coprarna_internal_table.csv").read_text().splitlines()[1].split(
-        ","
-    )[1:3] == ["NA", "NA"]
+    published = (tmp_path / "coprarna_internal_table.csv").read_text().splitlines()[
+        1
+    ].split(",")
+    assert published[1:3] == ["", ""]
+    assert published[10] == ""
+    assert "NA" not in published
 
 
 def test_all_extended_plot_pages_are_exported_as_vectors(tmp_path, monkeypatch):
@@ -356,6 +369,18 @@ def test_web_export_cannot_reintroduce_a_filtered_perfect_helix(tmp_path, monkey
     (tmp_path / "NC_000001_upfromstartpos_200_down_100.fa").write_text(
         ">tag\n" + "C" * 32 + "\n"
     )
+    (tmp_path / "NC_000001_upfromstartpos_200_down_100.fa.context.json").write_text(
+        json.dumps(
+            [
+                dict(
+                    tag="tag",
+                    sequence="A" * 100 + "C" * 32 + "A" * 100,
+                    start=100,
+                    end=132,
+                )
+            ]
+        )
+    )
     (tmp_path / "CopraRNA_option_file.txt").write_text("intarna parameter file:\n")
     (tmp_path / "CopraRNA_result.csv").write_text(
         "fdr,p-value,NC_000001,Annotation,Additional homologs,Amount sampled\n"
@@ -364,16 +389,19 @@ def test_web_export_cannot_reintroduce_a_filtered_perfect_helix(tmp_path, monkey
 
     def native(arguments, directory):
         assert "--outNumber=2" in arguments
+        assert "--tRegion=1-32" in arguments
+        assert "--tIdxPos0=-100" in arguments
         fields = next(
             arg.split("=", 1)[1] for arg in arguments if arg.startswith("--outCsvCols=")
         ).split(",")
-        with open_text(directory / "IntaRNA_web.csv.gz", "wt") as stream:
+        with open_text(arguments[arguments.index("--out") + 1], "wt") as stream:
             writer = csv.DictWriter(stream, fields, delimiter=";", lineterminator="\n")
             writer.writeheader()
             for pairs, score in [(32, -100), (10, -12)]:
                 record = dict.fromkeys(fields, "0")
                 record.update(
                     row(pairs, query=32, target=32),
+                    seq1="A" * 100 + "C" * 32 + "A" * 100,
                     id1="tag",
                     id2="query",
                     bpList="".join(f"({i},{33 - i})" for i in range(1, pairs + 1)),

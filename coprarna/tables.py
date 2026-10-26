@@ -57,8 +57,7 @@ def blast_to_homology(path: Path) -> str:
 def disentangle(directory: Path) -> str:
     """Write optimal/suboptimal IntaRNA tables from sorted native predictions.
 
-    Keep the best and second-best interaction per target in production; the helper
-    oracle alone retains the old repeated-overwrite defect. Read/write gzip
+    Keep the best and second-best interaction per target. Read/write gzip
     directly when the input is compressed and keep the required native schema.
     """
     for path in paths(directory, "*.fa.intarna.sorted.csv"):
@@ -66,12 +65,7 @@ def disentangle(directory: Path) -> str:
         for line in read_text(path).splitlines()[1:]:
             tag = line.split(";")[0]
             if tag in optimal:
-                from .compatibility import legacy_enabled
-
-                if legacy_enabled():
-                    suboptimal[tag] = line
-                else:
-                    suboptimal.setdefault(tag, line)
+                suboptimal.setdefault(tag, line)
             else:
                 optimal[tag] = line
         for suffix, rows in [("opt", optimal), ("subopt", suboptimal)]:
@@ -141,7 +135,7 @@ def additional_homologs(path: Path, clusters: Path) -> str:
         for cell in perl_split(r"\t", line)[1:]:
             homologs = []
             for entry in re.split(r"\s", cell):
-                match = re.search(r"\w{4}:(.*)", entry)
+                match = re.search(r"^[^:]+:(.*)", entry)
                 if match:
                     tag = re.sub(r"\(\d+\).*", "", match[1]).lower()
                     homologs.append(tag)

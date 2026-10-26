@@ -12,5 +12,6 @@
   ],
   "modules": [
     "Bio::DB::EUtilities"
-  ]
+  ],
+  "helper": "download-genbank"
 }

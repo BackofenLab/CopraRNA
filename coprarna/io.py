@@ -37,11 +37,15 @@ def paths(directory, pattern):
 
 
 def accession(path):
-    """Extract the RefSeq label from plain/compressed GenBank file names."""
+    """Extract an unversioned report label from plain/compressed GenBank file names.
+
+    Cache paths retain the exact version; scientific table and FASTA labels use
+    the accession without a version so existing coordinate/report formats agree.
+    """
     name = Path(path).name.removesuffix(".gz")
     for suffix in (".gbff", ".gbk", ".gb"):
         if name.endswith(suffix):
-            return name[: -len(suffix)]
+            return name[: -len(suffix)].split(".")[0]
     return Path(name).stem
 
 
@@ -71,14 +75,16 @@ _JOB_OUTPUTS = (
     "ncrna.fa",
     "ncrna_aligned.fa",
     "aligned_sRNA.fa",
+    "resolved_sRNA.fa",
     "ncRNA_*.fa",
-    "*_upfromstartpos_*_down_*.fa*",
+    "*_upfromstartpos_*_down_*.fa*",  # Includes genomic-context JSON sidecars.
     "*.filter.json",
     "16s_sequences.*",
     "compatible.*",
     "zscore.weight",
     "weights.warning",
     "genome_paths.txt",
+    "genome_metadata.json",
     "CopraRNA_option_file.txt",
     "CopraRNA*.csv",
     "CopraRNA*_pvalues.txt",

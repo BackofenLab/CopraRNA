@@ -1,8 +1,82 @@
 # ChangeLog
 
-## Unreleased — Python 3 CopraRNA2
+## 3.0.0 — release preparation, 2026-10-22
 
-Development release `3.0.0.dev0`, addressing
+Addresses [issue #4](https://github.com/BackofenLab/CopraRNA/issues/4), based on and
+targeting `issue-1-python3-bugfixes`. This release completes the transition from
+the original 2.1.3 scripts to the Python-only CopraRNA2 runtime.
+
+- **Correct genomic accessibility boundaries ([issue #6](https://github.com/BackofenLab/CopraRNA/issues/6)).**
+  Extend native target inputs on both sides by the target accessibility base-pair
+  span (`tAccL`, 100 nt by default), honoring shared `accL` and the native zero/window
+  semantics. Wrap circular genomes and stop at physical linear ends; preserve
+  strand, spliced CDS and short-truncated-UTR selection conventions. Restrict
+  interactions with `--tRegion` and native indexing so all reported positions,
+  seeds and structures refer to the requested sequence. Trim target CSV sequences
+  and normalize `E_norm` before filtering/statistics; reuse context for web exports.
+  Keep context sidecars in prediction signatures and retained job artifacts, and
+  invalidate old predictions. This intentionally changes accessibility energies and
+  potentially rankings; independently captured fixtures for unchanged extraction,
+  statistics and reports remain untouched. Test explicit boundary contracts and
+  real IntaRNAsTar interactions, including the effect of genomic folding context.
+- **Simplify missing report fields and update DAVID access.** Following review of
+  [PR #7](https://github.com/BackofenLab/CopraRNA/pull/7) and the convention in
+  [upstream issue #22](https://github.com/PatrickRWright/CopraRNA/issues/22), write
+  unavailable values as empty cells in published result and web tables instead of
+  the internal `NA` marker. This makes CSV imports unambiguous without changing
+  statistical missing-value handling. Authenticate DAVID requests with the shared
+  email account instead of the former personal address.
+- **Remove static organism catalogs.** `CopraRNA_available_organisms.txt` supplied
+  display names and an input allow-list; `kegg2refseqnew.csv` supplied assembly
+  membership and arbitrary organism codes. Neither is necessary: resolve current
+  complete RefSeq assemblies and every chromosome/plasmid through NCBI
+  E-utilities and Datasets v2, and obtain names from metadata/GenBank. No global
+  table generation, KEGG identifiers or release-bound availability updates remain.
+- **Versioned, reusable resolution.** Accept `NC_`, `NZ_` and `GCF_` IDs with optional
+  versions. Cache validated metadata under the shared genome database using locks
+  and atomic publication. Reject ambiguous/missing/draft assemblies, incomplete
+  sequence reports and multiple inputs representing the same assembly. Follow
+  all report pages. Use short, deterministic job-local species codes to respect
+  DomClust's native name limits; snapshot those codes and exact genome identities
+  in `genome_metadata.json`. Resolve assembly/plasmid/versioned FASTA headers to
+  primary-chromosome IDs in a separate working copy for alignment and reporting.
+  Scientific table labels stay unversioned.
+- **Inspect, prefetch and refresh genomes.** Add `coprarna genomes`, `--download`
+  and `--refresh`. Cache exact-version gzip GenBank files, fetch accessions directly
+  without arbitrary first-hit searches, and retain old files on failed refresh.
+  Pace NCBI requests with timeouts and bounded transient retries. Reuse shared
+  compressed paths directly; prefetch metadata plus genomes for offline jobs.
+- **Remove the original code base.** Delete the Perl/R/Python 2/shell/PhantomJS
+  programs, old HTML wrappers, per-script mapping documents, migration inventory,
+  catalog maintenance code/resources, optional interpreter environments and
+  legacy source-capture tooling. Remove defect-emulation branches, script-name
+  aliases and `coprarna status`. Keep independently captured scientific data and
+  provenance with checksum protection; tests no longer execute original sources.
+- **Refresh all 17 reference genomes.** Download current NCBI GenBank annotations
+  and sequence versions, replacing the old bzip2 snapshots with versioned gzip
+  files. The archive manifest records source URLs, retrieval time, record dates,
+  lengths, CDS counts and SHA-256 hashes. A Python refresh tool stages and checks
+  all records before publishing them. Reference tests check identities and all
+  three target-region modes without invoking legacy scripts.
+- **Publish one complete guide.** Replace the old README with the expanded Python
+  guide covering installation, input choice, examples, supported assemblies,
+  database updates, native settings, every prediction option, outputs, batches,
+  migration, testing and biological citations. Remove README.2.md. Update the
+  architecture ledger, wheel/sdist contents, package/CLI version and job-option
+  version consistently to 3.0.0; include the current HTML report resource.
+
+The validated numerical dependency/kernel pins are unchanged. Captured GEV,
+correlation, aggregation, consensus and Jalview expectations are not regenerated.
+Native integration verifies the current scientific interfaces, complete predictions,
+file/inline equivalence, shared caches, preserved inputs and vector reports.
+Live NCBI access was exercised for the reference refresh; offline request tests do
+not certify future NCBI or DAVID availability. Cached metadata remains fixed until
+explicit refresh; NCBI annotation updates can change predictions even when the
+sequence accession version is unchanged. Use fresh job directories for new data.
+
+## 3.0 development history — issues #1 and #3
+
+The `3.0.0.dev0` development series addressed
 [issue #1](https://github.com/BackofenLab/CopraRNA/issues/1).
 The rewrite and subsequent corrections are reviewed separately in
 [PR #2](https://github.com/BackofenLab/CopraRNA/pull/2) and
@@ -12,11 +86,11 @@ The rewrite and subsequent corrections are reviewed separately in
 
 The source workflow identifies itself as **CopraRNA 2.1.3**. Its controller and
 auxiliary Perl, R, Python 2, shell and JavaScript programs were translated into a
-Python 3 package. Original tracked files and bundled biological data remain
-byte unchanged; the Python runtime never invokes those scripts. The initial
+Python 3 package. During that rewrite, original tracked files and bundled biological data were kept
+byte unchanged; the Python runtime never invoked those scripts. The initial
 rewrite provided counterparts for all 41 scripts, with adjacent mapping documents
-and a machine-readable migration inventory. The reviewed runtime now retains 39
-active counterparts and marks two obsolete scripts retired.
+and a machine-readable migration inventory. At the end of PR #3, the runtime retained 39
+active counterparts and marked two obsolete scripts retired.
 
 The architecture separates the command-line interface and isolated batch runner
 (`cli.py`, `pipeline.py`) from the scientific stages:
@@ -75,8 +149,8 @@ workflows additionally exercise real external-tool integration.
   supported Linux x86-64/AVX2 systems before NumPy import, respecting explicit
   caller overrides. CPU/BLAS differences outside that setup remain a parity limit.
 
-Historical helper comparisons can explicitly reproduce retained defects in a
-thread-local context. Complete production predictions always use corrected code.
+PR #3 supported explicit thread-local reproduction of retained defects for
+historical helper comparisons. That comparison mode was removed for 3.0.0.
 
 ### Review-driven behavior and integration changes — PR #3
 
@@ -143,11 +217,9 @@ whole-workflow equality is no longer the acceptance criterion.
 
 Live NCBI/DAVID service availability is not certified by offline request tests.
 The conda environment targets Linux; it is not a published Bioconda recipe or a
-portable lockfile. Original sources remain for auditing, with optional interpreter
-requirements separated in `environment-legacy.yml` and `environment-legacy-r.yml`.
-Keep these optional interpreters in separate environments to avoid incompatible
-XML/ICU libraries. The retained RobustRankAggreg 1.1 oracle installs from its
-archived pure-R source, avoiding obsolete conda ABI pins.
+portable lockfile. PR #3 retained original sources and separate optional Perl/R oracle environments
+for auditing. Version 3.0.0 removes them from the distribution; captured results
+and provenance remain in the test suite, and the sources remain in Git history.
 
 
 ### Follow-up completeness audit — 2026-10-22

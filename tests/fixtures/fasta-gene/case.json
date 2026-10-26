@@ -7,5 +7,6 @@
   "outputs": [
     "input.fa.gene",
     "input.fa.tit"
-  ]
+  ],
+  "helper": "fasta-gene"
 }

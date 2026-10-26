@@ -1,22 +1,22 @@
 """GenBank helpers preserving the legacy coordinate and boundary conventions."""
 
 from pathlib import Path
+from dataclasses import dataclass
 import re
 
-from Bio import SeqIO
-
-# Perl's legacy transliteration complements only these four bases, not all IUPAC.
-_COMPLEMENT = str.maketrans("gatcGATC", "ctagCTAG")
+from .io import genbank_records, accession
 
 
 def _reverse_complement(sequence: str) -> str:
-    return sequence[::-1].translate(_COMPLEMENT)
+    from Bio.Seq import Seq
+
+    return str(Seq(sequence).reverse_complement())
 
 
 def _subseq(sequence: str, start: int, end: int) -> str:
     # Bio::Seq allows an empty interval when start == end+1.
     if start < 1 or end > len(sequence) or start > end + 1:
-        raise ValueError(f"Invalid legacy subsequence coordinates: {start}, {end}")
+        raise ValueError(f"Invalid subsequence coordinates: {start}, {end}")
     return sequence[start - 1 : end]
 
 
@@ -77,13 +77,54 @@ def get_region(
     return f">{tag}\n{value}\n"
 
 
-def parse_regions(path: Path, up: int, down: int, region: str) -> str:
-    records = list(SeqIO.parse(path, "genbank"))
-    # Intentionally use the first sequence for features of every record, as Perl does.
-    source = str(records[0].seq)
-    circular = records[0].annotations.get("topology") == "circular"
-    output = []
-    for record in records:
+@dataclass(frozen=True)
+class TargetRegion:
+    """A strand-oriented target with a 0-based, half-open prediction interval.
+
+    ``sequence`` includes genomic accessibility context; ``requested`` excludes
+    it. Instances are in-memory values and never modify their GenBank source.
+    """
+
+    tag: str
+    sequence: str
+    start: int
+    end: int
+
+    @property
+    def requested(self) -> str:
+        """Return only the requested target sequence, without accessibility flanks."""
+        return self.sequence[self.start : self.end]
+
+
+def _genomic_slice(sequence, start, end, circular):
+    # Context may cross either end or more than one circular origin. Linear
+    # records stop at their physical ends; never fabricate missing nucleotides.
+    if circular:
+        length = len(sequence)
+        offset = start % length
+        return (sequence * ((offset + end - start + length - 1) // length))[
+            offset : offset + end - start
+        ]
+    return sequence[max(0, start) : min(len(sequence), end)]
+
+
+def extract_targets(
+    path: Path, up: int, down: int, region: str, context: int | None = 0
+):
+    """Yield requested CDS regions with additional genomic accessibility context.
+
+    Preserve the established requested-region sequence, including spliced CDS
+    order and omission of truncated UTRs shorter than 150 nt. Add ``context`` bases
+    at both biological ends, wrapping circular records and clipping linear ones.
+    None requests a full replicon length on each side for an unlimited span.
+    TargetRegion coordinates are 0-based, half-open within the extended sequence.
+    Stream compressed/plain GenBank without modifying it; reject negative context.
+    """
+    if context is not None and context < 0:
+        raise ValueError("Accessibility context must be nonnegative")
+    for record in genbank_records(path):
+        source = str(record.seq)
+        circular = record.annotations.get("topology") == "circular"
         for feature in record.features:
             if feature.type != "CDS":
                 continue
@@ -104,10 +145,20 @@ def parse_regions(path: Path, up: int, down: int, region: str) -> str:
 
             if region == "5utr":
                 pos = int(parts[0].start) + 1 if strand == 1 else int(parts[-1].end)
-                output.append(flank(pos, up, down))
+                requested = flank(pos, up, down)
+                left, right = (
+                    (pos - up - 1, pos + down - 1)
+                    if strand == 1
+                    else (pos + up, pos - down)
+                )
             elif region == "3utr":
                 pos = int(parts[-1].end) + 1 if strand == 1 else int(parts[0].start)
-                output.append(flank(pos, up, down))
+                requested = flank(pos, up, down)
+                left, right = (
+                    (pos - up - 1, pos + down - 1)
+                    if strand == 1
+                    else (pos + up, pos - down)
+                )
             elif region == "cds":
                 protein_region = str(feature.extract(record.seq))
                 # Perl spliced_seq is returned in biological order, independent of
@@ -142,13 +193,51 @@ def parse_regions(path: Path, up: int, down: int, region: str) -> str:
                     ).split("\n", 1)[1]
                     if start == 1:
                         after = after[1:]
-                output.append(before + protein_region + after)
-    return "".join(output)
+                requested = before + protein_region + after
+                left, right = (
+                    (int(parts[0].start) - up, int(parts[-1].end) + down)
+                    if strand == 1
+                    else (int(parts[-1].end) + up, int(parts[0].start) - down)
+                )
+            else:
+                raise ValueError(f"Unknown target region: {region}")
+            if not requested:
+                continue
+            sequence = requested.split("\n", 1)[1].rstrip("\n")
+            if not circular:
+                left, right = (min(len(source), max(0, p)) for p in (left, right))
+            amount = len(source) if context is None else context
+            if strand == 1:
+                before = _genomic_slice(source, left - amount, left, circular)
+                after = _genomic_slice(source, right, right + amount, circular)
+            else:
+                before = _reverse_complement(
+                    _genomic_slice(source, left, left + amount, circular)
+                )
+                after = _reverse_complement(
+                    _genomic_slice(source, right - amount, right, circular)
+                )
+            yield TargetRegion(
+                tag, before + sequence + after, len(before), len(before) + len(sequence)
+            )
+
+
+def parse_regions(path: Path, up: int, down: int, region: str) -> str:
+    """Return requested CDS FASTA regions without accessibility context.
+
+    Preserve the established 1-based flank conventions, strand, circular wrap,
+    spliced CDS and short-truncated-UTR exclusion. Stream compressed/plain
+    GenBank records without writing files; invalid coordinates raise ValueError.
+    """
+    return "".join(
+        f">{r.tag}\n{r.requested}\n" for r in extract_targets(path, up, down, region)
+    )
 
 
 def check_gene_cds(path: Path, display_name: str | None = None) -> str:
+    """Return a diagnostic when genes are annotated but no CDS features exist."""
     genes = cds = 0
-    for record in SeqIO.parse(path, "genbank"):
+    for record in genbank_records(path):
         genes += sum(f.type == "gene" for f in record.features)
         cds += sum(f.type == "CDS" for f in record.features)
     if cds == 0 and genes != 0:
@@ -156,18 +245,20 @@ def check_gene_cds(path: Path, display_name: str | None = None) -> str:
     return ""
 
 
-def extract_proteins(
-    path: Path, mapping_text: str, display_name: str | None = None
-) -> str:
-    # Matching is deliberately unanchored, and removes exactly three filename bytes.
-    accession = (display_name or str(path))[:-3]
-    code = ""
-    for line in mapping_text.splitlines():
-        if re.search(accession, line):
-            code = re.split(r"\s", line)[0]
-            break
+def extract_proteins(path: Path, organism: str | None = None) -> str:
+    """Return translated CDS FASTA with organism:locus-tag identifiers.
+
+    Use an explicit assembly code to group chromosomes and plasmids in DomClust,
+    or the file's accession for a standalone helper. No organism catalog is used.
+    Reject whitespace/colon in codes; stream the input without writing files.
+    """
+    code = organism or accession(path).replace(".", "_")
+    if not code or re.search(r"\s|:", code):
+        raise ValueError(
+            "Protein organism code must be nonempty without whitespace or colon"
+        )
     output = []
-    for record in SeqIO.parse(path, "genbank"):
+    for record in genbank_records(path):
         for feature in record.features:
             q = feature.qualifiers
             if feature.type == "CDS" and "locus_tag" in q and "translation" in q:
@@ -176,13 +267,14 @@ def extract_proteins(
 
 
 def extract_16s(groups: list[str], directory: Path) -> str:
+    """Return one annotated 16S sequence per organism, searching replicons in order."""
     output = []
     for group in groups:
         filenames = group.split(",")
-        label = filenames[0][:-3]
+        label = accession(filenames[0])
         found = False
         for filename in filenames:
-            for record in SeqIO.parse(directory / filename, "genbank"):
+            for record in genbank_records(directory / filename):
                 for feature in record.features:
                     product = feature.qualifiers.get("product", [""])[0]
                     if feature.type == "rRNA" and re.search(

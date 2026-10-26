@@ -9,5 +9,6 @@
     "CopraRNA2_final_all_ooi.csv",
     "CopraRNA2_final_all_evo.csv"
   ],
-  "rng_seed": 731
+  "rng_seed": 731,
+  "helper": "join-copra2"
 }

@@ -4,5 +4,6 @@
   "args": [
     "blast.tsv"
   ],
-  "outputs": []
+  "outputs": [],
+  "helper": "blast-homology"
 }

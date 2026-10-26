@@ -1,8 +1,7 @@
-"""Command-line access to validated migration helpers and isolated batch jobs."""
+"""Command-line access to predictions, genome metadata and isolated batch jobs."""
 
 import argparse
 from concurrent.futures import ThreadPoolExecutor
-from importlib.resources import files
 import json
 import logging
 from pathlib import Path
@@ -21,10 +20,10 @@ def _parser():
     parser.add_argument("--version", action="version", version=__version__)
     commands = parser.add_subparsers(dest="command", required=True)
     helper = commands.add_parser(
-        "helper", help="Execute a validated port in one working directory"
+        "helper", help="Execute a Python workflow stage in one working directory"
     )
     helper.add_argument("--workdir", type=Path, default=Path.cwd())
-    helper.add_argument("name", help="Helper name or original script basename")
+    helper.add_argument("name", help="Name from coprarna helpers")
     helper.add_argument("args", nargs=argparse.REMAINDER)
     batch = commands.add_parser(
         "batch", help="Run independent prediction or helper jobs from a JSON manifest"
@@ -41,10 +40,26 @@ def _parser():
     from .pipeline import Config
     from dataclasses import fields
 
+    parameter_input = run.add_mutually_exclusive_group()
+    parameter_input.add_argument(
+        "--intarna-params",
+        dest="intarna_params",
+        help="IntaRNA 3 parameter file (paths relative to the job directory)",
+    )
+    parameter_input.add_argument(
+        "--intarna-params-text",
+        dest="intarna_params_text",
+        help="Inline IntaRNA 3 parameter-file contents",
+    )
+    run.add_argument(
+        "--genome-db",
+        dest="genome_db",
+        help="Shared directory for compressed GenBank genomes",
+    )
     for field in fields(Config):
-        if field.name == "seed":
-            run.add_argument("--seed", type=int, default=None)
-        elif isinstance(field.default, bool):
+        if field.name in ("intarna_params", "intarna_params_text", "genome_db"):
+            continue
+        if isinstance(field.default, bool):
             run.add_argument("--" + field.name, "-" + field.name, action="store_true")
         else:
             run.add_argument(
@@ -53,12 +68,27 @@ def _parser():
                 type=type(field.default),
                 default=field.default,
             )
-    commands.add_parser("status", help="Print the complete migration inventory as JSON")
+    genomes = commands.add_parser(
+        "genomes", help="Resolve or prefetch RefSeq assemblies"
+    )
+    genomes.add_argument("accessions", nargs="+", help="NC_, NZ_ or GCF_ accessions")
+    genomes.add_argument("--genome-db", type=Path, default=Path("genomes"))
+    genomes.add_argument(
+        "--refresh",
+        action="store_true",
+        help="Refresh cached metadata (and genomes with --download)",
+    )
+    genomes.add_argument(
+        "--download",
+        action="store_true",
+        help="Also cache all chromosomes/plasmids as gzip GenBank",
+    )
     commands.add_parser("helpers", help="List helper names and positional arguments")
     return parser
 
 
 def _load_jobs(manifest: Path) -> list[dict]:
+    """Validate every batch job and its isolated output paths before any work starts."""
     raw = json.loads(manifest.read_text())
     if not isinstance(raw, list) or not raw:
         raise ValueError("Batch manifest must be a nonempty JSON list")
@@ -156,6 +186,7 @@ def _load_jobs(manifest: Path) -> list[dict]:
 
 
 def _run_job(job: dict) -> dict:
+    """Execute one validated job and return a serializable success/failure record."""
     record = {"id": job["id"], "helper": job["helper"]}
     stream = None
     try:
@@ -188,6 +219,7 @@ def _run_job(job: dict) -> dict:
 
 
 def main(argv=None) -> int:
+    """Dispatch CLI operations, preserving diagnostic streams and documented exit codes."""
     args = _parser().parse_args(argv)
     logging.basicConfig(
         level=logging.INFO, format="%(levelname)s: %(message)s", stream=sys.stderr
@@ -208,8 +240,21 @@ def main(argv=None) -> int:
                     + (" " + " ".join(spec.arguments) if spec.arguments else "")
                     + (" ..." if spec.variadic else "")
                 )
-        elif args.command == "status":
-            print(files("coprarna").joinpath("migration.json").read_text(), end="")
+        elif args.command == "genomes":
+            from . import organisms, ncbi
+
+            metadata = [
+                organisms.resolve(identifier, args.genome_db, refresh=args.refresh)
+                for identifier in args.accessions
+            ]
+            if args.download:
+                for identifier in dict.fromkeys(
+                    r for m in metadata for r in m["replicons"]
+                ):
+                    ncbi.genome_path(
+                        identifier, Path.cwd(), args.genome_db, refresh=args.refresh
+                    )
+            print(json.dumps(metadata, indent=2))
         elif args.command == "helper":
             sys.stdout.write(run_helper(args.name, args.args, args.workdir))
         elif args.command == "batch":

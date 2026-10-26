@@ -7,5 +7,6 @@
   ],
   "outputs": [
     "coprarna_internal_table.csv"
-  ]
+  ],
+  "helper": "webserver-output"
 }

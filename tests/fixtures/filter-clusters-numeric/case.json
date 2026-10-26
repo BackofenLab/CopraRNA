@@ -1,8 +1,0 @@
-{
-  "script": "coprarna_aux/remove_clusters_under_percantage.R",
-  "language": "r",
-  "args": [],
-  "outputs": [
-    "opt_tags.clustered_rcsize"
-  ]
-}

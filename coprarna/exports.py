@@ -1,5 +1,6 @@
 """Legacy enrichment exports; text formatting is intentionally preserved."""
 
+import json
 import math
 from pathlib import Path
 import re
@@ -27,7 +28,16 @@ def _color(groups: int, group: int, pvalue: float, solid: bool) -> str:
     return "#" + "".join(f"{int(value * 255):02x}" for value in values)
 
 
+def _json_string(value):
+    return json.dumps(value, ensure_ascii=False)
+
+
 def heatmap_json(path: Path) -> str:
+    """Write copraRNA.json from the retained enrichment membership table.
+
+    The first three lines define clusters, dimensions and feature labels. Each
+    remaining membership becomes a colored JSON cell; labels are JSON-escaped.
+    """
     lines = path.read_text().splitlines()
     groups, parameters, header = (line.split("\t") for line in lines[:3])
     group_text = ";".join(
@@ -47,9 +57,9 @@ def heatmap_json(path: Path) -> str:
             output.append(
                 "{"
                 + f'"flagF":{int(row_number == 1)},"fMax":{len(parameters) - 2},'
-                + f'"fNum":{feature_index},"feature":"{header[i]}",'
+                + f'"fNum":{feature_index},"feature":{_json_string(header[i])},'
                 + f'"flagS":{int(feature_index == 1)},"sMax":{parameters[0]},'
-                + f'"sNum":{row_number},"source":"{row[4]}",'
+                + f'"sNum":{row_number},"source":{_json_string(row[4])},'
                 + f'"color":"{color}","value":{row[1]},"group":"{group_text}"'
                 + "}"
             )
@@ -60,6 +70,11 @@ def heatmap_json(path: Path) -> str:
 
 
 def specific_targets(directory: Path) -> str:
+    """Return enriched-term targets found only in the organism-specific prediction.
+
+    Compare DAVID cluster/chart reports with the annotated IntaRNA table, retaining
+    the original GeneID lookup and output field ordering for helper parity.
+    """
     main, single = {}, {}
     score = 0.0
     for line in (directory / "termClusterReport.txt").read_text().splitlines():

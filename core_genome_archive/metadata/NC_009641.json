@@ -1,0 +1,10 @@
+{
+  "schema_version": 1,
+  "query": "NC_009641",
+  "assembly": "GCF_000010465.1",
+  "organism": "Staphylococcus aureus subsp. aureus str. Newman",
+  "replicons": [
+    "NC_009641.1"
+  ],
+  "retrieved_at": "2026-10-22T13:13:28.069101+00:00"
+}

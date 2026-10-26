@@ -5,6 +5,7 @@ from pathlib import Path
 
 WSDL = "https://david-d.ncifcrf.gov/webservice/services/DAVIDWebService?wsdl"
 ENDPOINT = "https://david-d.ncifcrf.gov/webservice/services/DAVIDWebService.DAVIDWebServiceHttpSoap11Endpoint/"
+EMAIL = "rna@informatik.uni-freiburg.de"
 
 
 def _report(path, count, copra, client_factory=None):
@@ -32,7 +33,7 @@ def _report(path, count, copra, client_factory=None):
     client = client_factory(WSDL)
     client.wsdl.services[0].setlocation(ENDPOINT)
     emit(client)
-    emit(client.service.authenticate("patrickrw@gmx.net"))
+    emit(client.service.authenticate(EMAIL))
     emit(
         client.service.addList(
             ",".join(background[:count]), "ENTREZ_GENE_ID", "make_up", 0
@@ -50,8 +51,18 @@ def _report(path, count, copra, client_factory=None):
 
 
 def coprarna_report(path: Path, count: int, client_factory=None) -> str:
+    """Request DAVID term clusters for the first count comparative predictions.
+
+    Use all supplied predictions as background and return the captured request/
+    response transcript. An injected SOAP client enables offline request parity.
+    """
     return _report(path, count, True, client_factory)
 
 
 def intarna_report(path: Path, count: int, client_factory=None) -> str:
+    """Request a DAVID chart for the first count annotated native interactions.
+
+    Return the service transcript; an injected client replaces network access in
+    tests without changing endpoint, account or category/request conventions.
+    """
     return _report(path, count, False, client_factory)

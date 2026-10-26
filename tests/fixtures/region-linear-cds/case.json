@@ -10,5 +10,6 @@
   "outputs": [],
   "modules": [
     "Bio::SeqIO"
-  ]
+  ],
+  "helper": "genome-regions"
 }

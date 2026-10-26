@@ -1,40 +1,45 @@
-import gzip
+"""Release packaging and independently captured fixture integrity."""
+
+import hashlib
 import importlib
-from importlib.resources import files
 import json
-from pathlib import Path
+import tomllib
 
+from coprarna import __version__
 from coprarna.helpers import HELPERS
-from tests.support.legacy import ROOT
+from tests.support.fixtures import ROOT, FIXTURES
 
 
-def test_mapping_covers_every_original_script_and_discloses_pending_work():
-    original = json.loads((ROOT / "tests/fixtures/legacy-sha256.json").read_text())
-    scripts = {
-        name
-        for name in original
-        if Path(name).suffix in {".pl", ".R", ".py", ".js", ".sh"}
-    }
-    inventory = json.loads(files("coprarna").joinpath("migration.json").read_text())
-    assert {entry["legacy"] for entry in inventory} == scripts
-    assert len(inventory) == len(scripts)
-    ported = {
-        Path(entry["legacy"]).name for entry in inventory if entry["status"] == "ported"
-    }
-    assert ported == {helper.legacy for helper in HELPERS.values()}
-    for entry in inventory:
-        mapping = (ROOT / (entry["legacy"] + ".md")).read_text()
-        assert entry["status"] in mapping
-        if entry["status"] == "ported":
-            assert entry["fixtures"]
-            module, function = entry["target"].rsplit(".", 1)
-            assert callable(getattr(importlib.import_module(module), function))
-        else:
-            assert "not been implemented" in mapping
-            assert "target" not in entry
+def test_release_version_and_readme_agree():
+    project = tomllib.loads((ROOT / "pyproject.toml").read_text())["project"]
+    assert project["version"] == __version__ == "3.0.0"
+    assert project["readme"] == "README.md"
+    assert not (ROOT / "README.2.md").exists()
 
 
-def test_packaged_organism_tables_are_unchanged():
-    for name in ("kegg2refseqnew.csv", "CopraRNA_available_organisms.txt"):
-        bundled = files("coprarna").joinpath("data/" + name + ".gz").read_bytes()
-        assert gzip.decompress(bundled) == (ROOT / "coprarna_aux" / name).read_bytes()
+def test_only_python_helpers_and_current_resources_remain():
+    for name in (
+        "CopraRNA2.pl",
+        "coprarna_aux",
+        "update_kegg2refseq",
+        "environment-legacy.yml",
+        "environment-legacy-r.yml",
+        "coprarna/migration.json",
+        "coprarna/compatibility.py",
+        "coprarna/maintenance.py",
+    ):
+        assert not (ROOT / name).exists(), name
+    for path in (ROOT / "coprarna/data").iterdir():
+        assert path.name in {"archive_README.txt", "copra_heatmap.html"}
+    for helper in HELPERS.values():
+        module, function = helper.target.rsplit(".", 1)
+        assert callable(getattr(importlib.import_module(module), function))
+    assert "organism-mapping" not in HELPERS and "availability-header" not in HELPERS
+
+
+def test_captured_scientific_expectations_are_unchanged():
+    manifest = json.loads((FIXTURES / "captured-sha256.json").read_text())
+    for relative, digest in manifest.items():
+        assert (
+            hashlib.sha256((FIXTURES / relative).read_bytes()).hexdigest() == digest
+        ), relative

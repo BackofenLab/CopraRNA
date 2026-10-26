@@ -1,6 +1,5 @@
 """Offline full-workflow regression, including persisted scientific/report data."""
 
-import json
 import os
 from pathlib import Path
 import shutil
@@ -12,14 +11,17 @@ import pytest
 from coprarna import alignments, conservation, plots
 from coprarna.pipeline import Config, run_prediction
 from coprarna.rcompat import load_rdata
-from tests.support.legacy import FIXTURES
+from tests.support.fixtures import FIXTURES
 from tools.build_pipeline_fixture import build
 
 
 @pytest.fixture
 def oracle(tmp_path):
-    with tarfile.open(FIXTURES / "workflow/legacy.tar.gz") as archive:
+    with tarfile.open(FIXTURES / "workflow/captured.tar.gz") as archive:
         archive.extractall(tmp_path, filter="data")
+    shutil.copyfile(
+        FIXTURES / "workflow/organisms.json", tmp_path / "genome_metadata.json"
+    )
     return tmp_path
 
 
@@ -124,47 +126,200 @@ def test_plot_geometry_and_heatmap_match_original_R(oracle):
     os.environ.get("COPRARNA_PIPELINE_TESTS") != "1",
     reason="opt-in scientific integration",
 )
-def test_full_native_prediction_matches_legacy(oracle, tmp_path):
-    job = tmp_path / "native"
-    build(job)
-    expected = json.loads((FIXTURES / "workflow/provenance.json").read_text())
-    run_prediction(
-        Path("input_sRNA.fa"),
-        job,
-        Config(winsize=80, maxbpdist=60, cores=2, topcount=20, noclean=True),
+def test_file_and_inline_parameters_produce_identical_predictions(
+    tmp_path, monkeypatch
+):
+    from coprarna import intarna, webserver
+    from coprarna.runtime import command
+
+    database = tmp_path / "database"
+    database.mkdir()
+    jobs = [tmp_path / "file-job", tmp_path / "inline-job"]
+    for job in jobs:
+        build(job, database)
+    for path in jobs[0].glob("*.gb.gz"):
+        path.rename(database / path.name)
+    for path in jobs[1].glob("*.gb.gz"):
+        path.unlink()
+    parameter_text = "tAccW=80\ntAccL=60\n"
+    supplied = jobs[0] / "parameters.cfg"
+    supplied.write_text(parameter_text)
+    original = {job: (job / "input_sRNA.fa").read_bytes() for job in jobs}
+    calls = []
+
+    def record(arguments, directory, **kwargs):
+        if arguments[0] == "IntaRNAsTar":
+            path = Path(arguments[arguments.index("--parameterFile") + 1])
+            calls.append((arguments[:], path, path.read_text()))
+        return command(arguments, directory, **kwargs)
+
+    monkeypatch.setattr(intarna, "command", record)
+    monkeypatch.setattr(webserver, "command", record)
+    for index, job in enumerate(jobs):
+        setting = (
+            {"intarna_params": str(supplied)}
+            if index == 0
+            else {"intarna_params_text": parameter_text}
+        )
+        run_prediction(
+            Path("input_sRNA.fa"),
+            job,
+            Config(
+                cores=2,
+                topcount=20,
+                noclean=True,
+                websrv=True,
+                genome_db=str(database),
+                **setting,
+            ),
+        )
+        assert (job / "input_sRNA.fa").read_bytes() == original[job]
+        assert len(list(job.glob("*.fa.intarna.csv.gz"))) == 3
+        assert not list(job.glob("*.fa.intarna.csv"))
+        assert not list(job.glob(".intarna-*"))
+        assert all(
+            Path(line).parent == database
+            for line in (job / "genome_paths.txt").read_text().splitlines()
+        )
+        assert not list(job.glob("*.gb*"))
+        # Native context is retained separately; every downstream FASTA and CSV
+        # uses the originally requested 200+100 nt region and 1-based positions.
+        import csv
+        import json
+        from Bio import SeqIO
+        from coprarna.io import open_text
+
+        sidecars = list(job.glob("*.fa.context.json"))
+        assert len(sidecars) == 3
+        for sidecar in sidecars:
+            targets = json.loads(sidecar.read_text())
+            requested = {
+                r.id: str(r.seq)
+                for r in SeqIO.parse(
+                    str(sidecar).removesuffix(".context.json"), "fasta"
+                )
+            }
+            assert all(
+                (r["start"], r["end"], len(r["sequence"])) == (60, 360, 420)
+                for r in targets
+            )
+            assert all(r["sequence"][60:360] == requested[r["tag"]] for r in targets)
+        for output in [*job.glob("*.fa.intarna.csv.gz"), job / "IntaRNA_web.csv.gz"]:
+            with open_text(output) as stream:
+                rows = list(csv.DictReader(stream, delimiter=";"))
+            assert rows
+            assert all(
+                len(r["seq1"]) == 300 and 1 <= int(r["start1"]) <= int(r["end1"]) <= 300
+                for r in rows
+            )
+        for pdf in job.glob("*.pdf"):
+            assert pdf.with_suffix(".svg").is_file()
+    assert calls and all(contents == parameter_text for _, _, contents in calls)
+    assert len(calls) == 8  # Three organisms and one web export in each job.
+    assert all(
+        "--tIdxPos0=-60" in args and "--tRegion=1-300" in args for args, _, _ in calls
     )
-    for name in expected["exact_outputs"]:
-        assert (job / name).read_bytes() == (oracle / name).read_bytes(), name
-    for filename in expected["semantic_Rdata"]:
-        name = Path(filename).stem
-        for actual, old in zip(
-            load_rdata(job / filename, name), load_rdata(oracle / filename, name)
-        ):
-            np.testing.assert_array_equal(actual, old)
+    assert all(
+        path.exists() if path == supplied else not path.exists() for _, path, _ in calls
+    )
+    for name in (
+        "CopraRNA_result.csv",
+        "CopraRNA_result_all.csv",
+        "coprarna_websrv_table.csv",
+    ):
+        assert (jobs[0] / name).read_bytes() == (jobs[1] / name).read_bytes(), name
 
 
 @pytest.mark.skipif(
     os.environ.get("COPRARNA_PIPELINE_TESTS") != "1",
     reason="opt-in scientific integration",
 )
-def test_full_seeded_copra1_matches_legacy(tmp_path):
+def test_corrected_workflow_builds_clusters_preserves_inputs_and_exports_vectors(
+    tmp_path,
+):
+    import csv
+    import json
+    import zipfile
+    import xml.etree.ElementTree as ET
+
+    database = tmp_path / "database"
+    database.mkdir()
     job = tmp_path / "native"
-    build(job)
-    run_prediction(
-        Path("input_sRNA.fa"),
-        job,
-        Config(
-            winsize=80,
-            maxbpdist=60,
-            cores=2,
-            topcount=20,
-            cop1=True,
-            seed=731,
-            noclean=True,
-        ),
+    build(job, database, accessions=["NZ_CP999901", "NC_999902", "NC_999903"])
+    # Exercise an assembly FASTA ID and a long, previously unknown NZ_ report ID
+    # through real native tools, without an availability catalog or network.
+    supplied = job / "input_sRNA.fa"
+    supplied.write_text(
+        supplied.read_text().replace(">NZ_CP999901", ">GCF_000000001.1")
     )
-    with tarfile.open(FIXTURES / "copra1-workflow/legacy.tar.gz") as archive:
-        for member in archive.getmembers():
-            assert (job / member.name).read_bytes() == archive.extractfile(
-                member
-            ).read(), member.name
+    metadata = json.loads((database / "metadata/NZ_CP999901.json").read_text())
+    metadata["query"] = "GCF_000000001.1"
+    (database / "metadata/GCF_000000001.1.json").write_text(json.dumps(metadata))
+    (job / "cluster.tab").unlink()
+    for path in job.glob("*.gb.gz"):
+        path.rename(database / path.name)
+    original = job / "annotations.fa"
+    (job / "input_sRNA.fa").rename(original)
+    original_bytes = original.read_bytes()
+    run_prediction(original, job, Config(cores=2, websrv=True, genome_db=str(database)))
+    assert original.read_bytes() == original_bytes
+    with (job / "CopraRNA_result_all.csv").open() as stream:
+        rows = list(csv.reader(stream))
+    assert len(rows) > 3
+    assert rows[0][2:5] == ["NZ_CP999901", "NC_999902", "NC_999903"]
+    assert "version:CopraRNA 3.0.0\n" in (job / "CopraRNA_option_file.txt").read_text()
+    assert (job / "cluster.tab").read_text().startswith("#id\t")
+    with (job / "coprarna_websrv_table.csv").open() as stream:
+        web = list(csv.reader(stream))
+    assert len(web) == 1 + sum(bool(row[2]) for row in rows[1:])
+    assert not (job / "cluster.members").exists()
+    assert not (job / "target_alignments").exists()
+    assert len(list((job / "IntaRNA").glob("*.csv.gz"))) == 3
+    sidecars = list((job / "IntaRNA").glob("*.fa.context.json"))
+    assert len(sidecars) == 3
+    assert all(
+        r["start"] == 100 and r["end"] == 400 and len(r["sequence"]) == 500
+        for path in sidecars
+        for r in json.loads(path.read_text())
+    )
+    tree = job / "Phylogeny/compatible.treefile"
+    assert tree.is_file() and tree.with_suffix(".treefile.svg").is_file()
+    for pdf in job.rglob("*.pdf"):
+        svg = pdf.with_suffix(".svg")
+        assert svg.is_file(), pdf
+        root = ET.parse(svg).getroot()
+        assert not any(element.tag.endswith("image") for element in root.iter()), svg
+    assert not list(job.rglob("*.ps")) and not list(job.rglob("*.png"))
+    with zipfile.ZipFile(job / "evo_alignments.zip") as archive:
+        assert any(name.endswith("_mapping_result.txt") for name in archive.namelist())
+
+
+@pytest.mark.skipif(
+    os.environ.get("COPRARNA_PIPELINE_TESTS") != "1",
+    reason="opt-in scientific integration",
+)
+def test_native_perfect_helix_is_removed_before_statistics(tmp_path):
+    from coprarna.intarna import filter_perfect_helices
+    from coprarna.io import read_text
+    from coprarna.runtime import command
+    from coprarna.tables import INTARNA_HEADER
+
+    (tmp_path / "target.fa").write_text(">self\n" + "C" * 32 + "\n")
+    (tmp_path / "query.fa").write_text(">query\n" + "G" * 32 + "\n")
+    command(
+        [
+            "IntaRNAsTar",
+            "--target=target.fa",
+            "--query=query.fa",
+            "--outMode=C",
+            "--outCsvCols=" + INTARNA_HEADER.replace(";", ","),
+            "--out=interactions.csv.gz",
+        ],
+        tmp_path,
+    )
+    output = tmp_path / "interactions.csv.gz"
+    assert len(read_text(output).splitlines()) > 1
+    report = filter_perfect_helices(output, {"tAccW": "150", "qAccW": "150"})
+    assert report["removed_perfect_helices"] >= 1
+    assert report["retained_interactions"] == 0
+    assert len(read_text(output).splitlines()) == 1

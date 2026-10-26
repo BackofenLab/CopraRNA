@@ -8,6 +8,7 @@ from .tables import perl_split
 
 
 def align_targets(path: Path, directory: Path) -> str:
+    """Create ordered target FASTAs and run independent MAFFT alignments in parallel."""
     sequences = {}
     for fasta in sorted(directory.glob("*upfromstartpos*down*fa")):
         lines = fasta.read_text().splitlines(keepends=True)
@@ -19,7 +20,7 @@ def align_targets(path: Path, directory: Path) -> str:
     target.mkdir(exist_ok=True)
     for i, line in enumerate(path.read_text().splitlines()[1:], 1):
         cells = perl_split(",", line)[2:-3]
-        with (target / f"{i}.fa").open("a") as stream:
+        with (target / f"{i}.fa").open("w") as stream:
             for cell in cells:
                 match = re.search(r"(.+)\(.+", cell)
                 if match:

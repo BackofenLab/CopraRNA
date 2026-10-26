@@ -4,5 +4,6 @@
   "args": [
     "report.txt"
   ],
-  "outputs": []
+  "outputs": [],
+  "helper": "enrichment-report"
 }

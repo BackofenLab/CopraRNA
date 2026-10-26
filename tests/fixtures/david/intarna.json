@@ -1,0 +1,45 @@
+{
+  "source_commit": "ee0c97166b3c0cca4570261ce319ec562c620efb",
+  "source": "DAVIDWebService_IntaRNA_chartReport.py",
+  "calls": [
+    [
+      "Client",
+      [
+        "https://david-d.ncifcrf.gov/webservice/services/DAVIDWebService?wsdl"
+      ]
+    ],
+    [
+      "setlocation",
+      [
+        "https://david-d.ncifcrf.gov/webservice/services/DAVIDWebService.DAVIDWebServiceHttpSoap11Endpoint/"
+      ]
+    ],
+    [
+      "authenticate",
+      [
+        "patrickrw@gmx.net"
+      ]
+    ],
+    [
+      "addList",
+      [
+        "0,1,2,3,4",
+        "ENTREZ_GENE_ID",
+        "make_up",
+        0
+      ]
+    ],
+    [
+      "getDefaultCategoryNames",
+      []
+    ],
+    [
+      "getChartReport",
+      [
+        1,
+        1
+      ]
+    ]
+  ],
+  "stdout": "background:10\ninput:5\nurl=https://david-d.ncifcrf.gov/webservice/services/DAVIDWebService?wsdl\noffline DAVID client\nauthenticate result\naddList result\ngetDefaultCategoryNames result\ngetChartReport result\n"
+}

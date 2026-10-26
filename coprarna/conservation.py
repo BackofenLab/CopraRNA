@@ -1,12 +1,12 @@
 """Interaction-coordinate mapping, consensus peaks and Jalview annotations."""
 
 from pathlib import Path
-import gzip
-from importlib.resources import files
+from .io import paths, genome_paths, genbank_records
+import json
 import numpy as np
 from Bio import SeqIO
 
-from .runtime import command
+from .runtime import command, srna_input
 from .rcompat import read_table, write_table, save_rdata, format_matrix_column
 from .rcompat import RNamedList
 from .statistics import r_number
@@ -38,6 +38,7 @@ COORDS = [8, 9, 25, 26, 10, 11, 27, 28]
 
 
 def peak_find(values, threshold=0.4):
+    """Return inclusive 1-based boundaries around all maximum-height positions."""
     values = np.asarray(values)
     maximum = max(values)
     cutoff = maximum * threshold
@@ -51,6 +52,9 @@ def peak_find(values, threshold=0.4):
 
 
 def peak_find_two(values, threshold=0.4, second_threshold=0.9):
+    """Find the main consensus peak and an eligible near-height secondary peak.
+
+    Retain the original asymmetric end threshold for reproducible peak boundaries."""
     first = peak_find(values, threshold)
     second = []
     outside = np.r_[values[: first[0] - 1], values[first[1] :]]
@@ -73,6 +77,7 @@ def peak_find_two(values, threshold=0.4, second_threshold=0.9):
 
 
 def overlap(peak, start, end, threshold=0.6):
+    """Test overlap relative to the shorter inclusive interval; an absent peak fails."""
     if not peak:
         return False
     left, right = min(start, end), max(start, end)
@@ -81,29 +86,32 @@ def overlap(peak, start, end, threshold=0.6):
 
 
 def organism_names(organisms, directory):
-    path = directory / "CopraRNA_available_organisms.txt"
-    text = (
-        path.read_text()
-        if path.exists()
-        else gzip.decompress(
-            files("coprarna")
-            .joinpath("data/CopraRNA_available_organisms.txt.gz")
-            .read_bytes()
-        ).decode()
-    )
-    mapping = [
-        line.split("\t")
-        for line in text.splitlines()
-        if line and not line.startswith("#")
-    ]
+    """Return compact plot labels from the job metadata or local GenBank records.
+
+    Match complete accession identities, ignoring version only for display lookup.
+    Standalone reports fall back to the accession when metadata is unavailable.
+    Read files without querying NCBI or modifying the job.
+    """
+    mapping = {}
+    path = directory / "genome_metadata.json"
+    if path.is_file():
+        for item in json.loads(path.read_text()):
+            for identifier in item["replicons"]:
+                mapping[identifier.split(".")[0]] = item["organism"]
+    else:
+        for path in genome_paths(directory):
+            for record in genbank_records(path):
+                mapping[record.id.split(".")[0]] = record.annotations.get(
+                    "organism", record.id
+                )
     names = []
     for org in organisms:
-        found = next(
-            (row[1] for row in mapping if len(row) > 1 and org.split(".")[0] in row[0]),
-            org,
-        )
-        parts = found.split("_")
-        label = found[:3] + "_" + (parts[1] if len(parts) > 1 else "NA")
+        found = mapping.get(org.split(".")[0])
+        if not found:
+            names.append(org)
+            continue
+        parts = found.replace("_", " ").split()
+        label = parts[0][:3] + "_" + (parts[1] if len(parts) > 1 else "NA")
         if len(parts) > 2:
             label += "_" + parts[-1]
         names.append(label)
@@ -132,6 +140,11 @@ def _boolean(value):
 
 
 def compute_conservation(ooi: str, directory: Path) -> str:
+    """Map interactions to target/sRNA alignments and persist consensus annotations.
+
+    Combine optimal and suboptimal coordinates, locate weighted consensus peaks,
+    and write R-compatible matrices plus Jalview annotation/alignment files. The
+    OOI selects organism-specific mappings; other outputs retain organism order."""
     command(
         [
             "mafft",
@@ -141,7 +154,7 @@ def compute_conservation(ooi: str, directory: Path) -> str:
             "--quiet",
             "--localpair",
             "--quiet",
-            "input_sRNA.fa",
+            srna_input(directory),
         ],
         directory,
         output="aligned_sRNA.fa",
@@ -161,7 +174,7 @@ def compute_conservation(ooi: str, directory: Path) -> str:
     for row in opt_rows:
         optimal.setdefault(row[0].lower(), row)
     suboptimal = {}
-    for path in sorted(directory.glob("*_subopt.intarna.csv")):
+    for path in paths(directory, "*_subopt.intarna.csv"):
         _, data = read_table(path, sep=";")
         for row in data:
             suboptimal.setdefault(row[0].lower(), row)

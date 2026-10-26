@@ -19,6 +19,13 @@ the original 2.1.3 scripts to the Python-only CopraRNA2 runtime.
   potentially rankings; independently captured fixtures for unchanged extraction,
   statistics and reports remain untouched. Test explicit boundary contracts and
   real IntaRNAsTar interactions, including the effect of genomic folding context.
+- **Simplify missing report fields and update DAVID access.** Following review of
+  [PR #7](https://github.com/BackofenLab/CopraRNA/pull/7) and the convention in
+  [upstream issue #22](https://github.com/PatrickRWright/CopraRNA/issues/22), write
+  unavailable values as empty cells in published result and web tables instead of
+  the internal `NA` marker. This makes CSV imports unambiguous without changing
+  statistical missing-value handling. Authenticate DAVID requests with the shared
+  `rna@informatik.uni-freiburg.de` account instead of the former personal address.
 - **Remove static organism catalogs.** `CopraRNA_available_organisms.txt` supplied
   display names and an input allow-list; `kegg2refseqnew.csv` supplied assembly
   membership and arbitrary organism codes. Neither is necessary: resolve current

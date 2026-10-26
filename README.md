@@ -324,7 +324,8 @@ coprarna run --workdir /data/jobs/balanced --srnaseq /data/my_sRNAs.fa \
 Result columns include FDR-adjusted and comparative p-values, per-organism locus
 annotations and interaction coordinates, additional homologs and retained report
 fields. Coordinates follow IntaRNA's 1-based conventions relative to the extracted
-sequences. A missing comparative score (`NA`) is not evidence of a significant
+sequences. Final result and web tables write unavailable values as empty cells
+rather than `NA`; a missing comparative score is not evidence of a significant
 interaction. Ranking identifies candidates for biological follow-up, not validated
 regulation. Review the 16S tree and weight warnings when an outlier dominates.
 
@@ -332,10 +333,10 @@ All scientific diagrams are vector PDF/SVG. Extended PDFs retain every page, and
 the matching SVG stacks those pages. `--websrv` adds `coprarna_websrv_table.csv`,
 interaction details and SVG thumbnails. `--enrich N` writes optional functional
 reports under `Enrichment/`. DAVID requires a reachable compatible SOAP service
-and the account configured by the adapter; offline tests validate request
-contracts, not live service availability. The optional interactive HTML enrichment
-report loads upstream JavaScript when opened. Core prediction does not need a
-browser or DAVID.
+and authenticates as `rna@informatik.uni-freiburg.de`; offline tests validate
+request contracts, not live service availability. The optional interactive HTML
+enrichment report loads upstream JavaScript when opened. Core prediction does not
+need a browser or DAVID.
 
 ## Independent batches and helpers
 

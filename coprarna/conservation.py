@@ -6,7 +6,7 @@ import json
 import numpy as np
 from Bio import SeqIO
 
-from .runtime import command, options, srna_input
+from .runtime import command, srna_input
 from .rcompat import read_table, write_table, save_rdata, format_matrix_column
 from .rcompat import RNamedList
 from .statistics import r_number

@@ -73,8 +73,10 @@ def prune_interaction(line1, line2, line3, line4, target, query):
 def prepare_webserver_output(result: Path, interactions: Path, directory: Path) -> str:
     """Write the frontend table from comparative rows and native-derived duplexes.
 
-    Keep rows with missing comparative probabilities as NA; the more selective
-    sTar personality can leave valid organism interactions without a combined score."""
+    Emit missing comparative probabilities as empty fields; the more selective
+    sTar personality can leave valid organism interactions without a combined score.
+    Write ``coprarna_internal_table.csv`` and raise ``ValueError`` for an empty input.
+    """
     lines = result.read_text().splitlines()
     ui = interactions.read_text().splitlines()
     if len(lines) <= 1:
@@ -103,7 +105,7 @@ def prepare_webserver_output(result: Path, interactions: Path, directory: Path) 
         interaction = prune_interaction(*block[1:5], target, query)
 
         def number(value, precision):
-            return "NA" if value in ("", "NA") else format(float(value), precision)
+            return "" if value in ("", "NA") else format(float(value), precision)
 
         fields = [
             str(rank),
@@ -126,7 +128,7 @@ def prepare_webserver_output(result: Path, interactions: Path, directory: Path) 
             block[13],
             "0",
         ]
-        output.append(",".join(fields) + "\n")
+        output.append(",".join("" if field == "NA" else field for field in fields) + "\n")
     (directory / "coprarna_internal_table.csv").write_text("".join(output))
     return ""
 

@@ -10,7 +10,7 @@ import xml.etree.ElementTree as ET
 
 import pytest
 
-from coprarna import genome, intarna, ncbi, parameters, pipeline, phylogeny
+from coprarna import genome, homology, intarna, ncbi, parameters, pipeline, phylogeny
 from coprarna.cli import main
 from coprarna.helpers import HELPERS
 from coprarna.io import open_text, read_text, write_text
@@ -304,7 +304,20 @@ def test_prediction_cache_signature_tracks_contents_not_paths(tmp_path):
     assert intarna.prediction_signature(tmp_path, "target.fa", "query.fa") != first
 
 
-def test_report_retains_missing_comparative_pvalues(tmp_path):
+def test_final_result_tables_publish_missing_values_as_empty_fields(tmp_path):
+    path = tmp_path / "CopraRNA_result.csv"
+    path.write_text(
+        "fdr,p.value,NC_000001,Annotation,Additional.homologs,Amount.sampled,initial_sorting\n"
+        "NA,NA,,containsNA,NA,0,7\n"
+    )
+    assert homology._finalize_result_table(path) == ["initial_sorting", "7"]
+    assert path.read_text() == (
+        "fdr,p-value,NC_000001,Annotation,Additional homologs,Amount sampled\n"
+        ",,,containsNA,,0\n"
+    )
+
+
+def test_web_report_publishes_missing_comparative_pvalues_as_empty_fields(tmp_path):
     from coprarna.webserver import prepare_webserver_output
     import shutil
 
@@ -315,12 +328,16 @@ def test_report_retains_missing_comparative_pvalues(tmp_path):
     lines = result.read_text().splitlines()
     fields = lines[1].split(",")
     fields[:2] = ["NA", "NA"]
+    fields[-2] = "NA"
     lines[1] = ",".join(fields)
     result.write_text("\n".join(lines) + "\n")
     prepare_webserver_output(result, interactions, tmp_path)
-    assert (tmp_path / "coprarna_internal_table.csv").read_text().splitlines()[1].split(
-        ","
-    )[1:3] == ["NA", "NA"]
+    published = (tmp_path / "coprarna_internal_table.csv").read_text().splitlines()[
+        1
+    ].split(",")
+    assert published[1:3] == ["", ""]
+    assert published[10] == ""
+    assert "NA" not in published
 
 
 def test_all_extended_plot_pages_are_exported_as_vectors(tmp_path, monkeypatch):

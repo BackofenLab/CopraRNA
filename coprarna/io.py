@@ -77,7 +77,7 @@ _JOB_OUTPUTS = (
     "aligned_sRNA.fa",
     "resolved_sRNA.fa",
     "ncRNA_*.fa",
-    "*_upfromstartpos_*_down_*.fa*",
+    "*_upfromstartpos_*_down_*.fa*",  # Includes genomic-context JSON sidecars.
     "*.filter.json",
     "16s_sequences.*",
     "compatible.*",

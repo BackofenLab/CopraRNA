@@ -102,6 +102,32 @@ def run_domclust(directory):
     (directory / "cluster.tab").write_text(table)
 
 
+def _finalize_result_table(path):
+    """Publish a result CSV with empty missing cells and no internal sort column.
+
+    Rewrite ``path`` in place, converting only complete ``NA`` fields so text that
+    happens to contain those letters is unchanged. Return the removed sort-column
+    values for the optional webserver alignment map. Reject empty or malformed
+    input rather than silently publishing a shifted table.
+    """
+    lines = path.read_text().splitlines()
+    fields = [line.split(",") for line in lines]
+    if not fields or any(len(row) < 2 for row in fields):
+        raise ValueError(f"Malformed result table: {path}")
+    internal_sorting = [row[-1] for row in fields]
+    published = [
+        ["" if cell == "NA" else cell for cell in row[:-1]] for row in fields
+    ]
+    text = "\n".join(",".join(row) for row in published) + "\n"
+    text = (
+        text.replace(",Additional.homologs,", ",Additional homologs,")
+        .replace(",Amount.sampled", ",Amount sampled")
+        .replace("p.value", "p-value")
+    )
+    path.write_text(text)
+    return internal_sorting
+
+
 def run_homology(
     srna: Path,
     up: int,
@@ -319,18 +345,11 @@ def run_homology(
     plot_evolutionary_heatmap(directory)
     for filename in ("CopraRNA_result.csv", "CopraRNA_result_all.csv"):
         path = directory / filename
-        lines = path.read_text().splitlines()
+        internal_sorting = _finalize_result_table(path)
         if filename == "CopraRNA_result.csv" and int(opt["websrv"]):
             (directory / "CopraRNA_result.map_evo_align").write_text(
-                "\n".join(line.split(",")[-1] for line in lines) + "\n"
+                "\n".join(internal_sorting) + "\n"
             )
-        text = "\n".join(",".join(line.split(",")[:-1]) for line in lines) + "\n"
-        text = (
-            text.replace(",Additional.homologs,", ",Additional homologs,")
-            .replace(",Amount.sampled", ",Amount sampled")
-            .replace("p.value", "p-value")
-        )
-        path.write_text(text)
     if int(opt["websrv"]):
         from .webserver import export_prediction
 

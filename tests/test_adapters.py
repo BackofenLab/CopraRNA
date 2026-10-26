@@ -13,10 +13,7 @@ from tests.support.fixtures import FIXTURES
 
 
 @pytest.mark.parametrize("copra", [True, False])
-def test_david_requests_and_stdout_match_captured_source(copra, tmp_path, monkeypatch):
-    pytest.importorskip("suds.client")
-    import suds.client
-
+def test_david_requests_and_stdout_match_captured_source(copra, tmp_path):
     calls = []
 
     class Service:
@@ -42,7 +39,6 @@ def test_david_requests_and_stdout_match_captured_source(copra, tmp_path, monkey
         def __str__(self):
             return "offline DAVID client"
 
-    monkeypatch.setattr(suds.client, "Client", Client)
     path = tmp_path / "prediction.csv"
     if copra:
         path.write_bytes(
@@ -59,6 +55,10 @@ def test_david_requests_and_stdout_match_captured_source(copra, tmp_path, monkey
     expected = json.loads(
         (FIXTURES / "david" / ("copra.json" if copra else "intarna.json")).read_text()
     )
+    # The retained capture used the former personal DAVID account. Keep the
+    # independently captured request fixture intact and apply the reviewed account
+    # change explicitly at the contract boundary.
+    expected["calls"][2][1] = [david.EMAIL]
     actual = (david.coprarna_report if copra else david.intarna_report)(path, 5, Client)
     assert actual == expected["stdout"]
     assert json.loads(json.dumps(calls)) == expected["calls"]

@@ -6,6 +6,26 @@ Addresses [issue #4](https://github.com/BackofenLab/CopraRNA/issues/4), based on
 targeting `issue-1-python3-bugfixes`. This release completes the transition from
 the original 2.1.3 scripts to the Python-only CopraRNA2 runtime.
 
+- **Correct genomic accessibility boundaries ([issue #6](https://github.com/BackofenLab/CopraRNA/issues/6)).**
+  Extend native target inputs on both sides by the target accessibility base-pair
+  span (`tAccL`, 100 nt by default), honoring shared `accL` and the native zero/window
+  semantics. Wrap circular genomes and stop at physical linear ends; preserve
+  strand, spliced CDS and short-truncated-UTR selection conventions. Restrict
+  interactions with `--tRegion` and native indexing so all reported positions,
+  seeds and structures refer to the requested sequence. Trim target CSV sequences
+  and normalize `E_norm` before filtering/statistics; reuse context for web exports.
+  Keep context sidecars in prediction signatures and retained job artifacts, and
+  invalidate old predictions. This intentionally changes accessibility energies and
+  potentially rankings; independently captured fixtures for unchanged extraction,
+  statistics and reports remain untouched. Test explicit boundary contracts and
+  real IntaRNAsTar interactions, including the effect of genomic folding context.
+- **Simplify missing report fields and update DAVID access.** Following review of
+  [PR #7](https://github.com/BackofenLab/CopraRNA/pull/7) and the convention in
+  [upstream issue #22](https://github.com/PatrickRWright/CopraRNA/issues/22), write
+  unavailable values as empty cells in published result and web tables instead of
+  the internal `NA` marker. This makes CSV imports unambiguous without changing
+  statistical missing-value handling. Authenticate DAVID requests with the shared
+  email account instead of the former personal address.
 - **Remove static organism catalogs.** `CopraRNA_available_organisms.txt` supplied
   display names and an input allow-list; `kegg2refseqnew.csv` supplied assembly
   membership and arbitrary organism codes. Neither is necessary: resolve current

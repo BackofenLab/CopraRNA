@@ -5,6 +5,7 @@ from pathlib import Path
 
 WSDL = "https://david-d.ncifcrf.gov/webservice/services/DAVIDWebService?wsdl"
 ENDPOINT = "https://david-d.ncifcrf.gov/webservice/services/DAVIDWebService.DAVIDWebServiceHttpSoap11Endpoint/"
+EMAIL = "rna@informatik.uni-freiburg.de"
 
 
 def _report(path, count, copra, client_factory=None):
@@ -32,7 +33,7 @@ def _report(path, count, copra, client_factory=None):
     client = client_factory(WSDL)
     client.wsdl.services[0].setlocation(ENDPOINT)
     emit(client)
-    emit(client.service.authenticate("patrickrw@gmx.net"))
+    emit(client.service.authenticate(EMAIL))
     emit(
         client.service.addList(
             ",".join(background[:count]), "ENTREZ_GENE_ID", "make_up", 0

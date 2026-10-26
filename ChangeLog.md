@@ -25,7 +25,7 @@ the original 2.1.3 scripts to the Python-only CopraRNA2 runtime.
   unavailable values as empty cells in published result and web tables instead of
   the internal `NA` marker. This makes CSV imports unambiguous without changing
   statistical missing-value handling. Authenticate DAVID requests with the shared
-  `rna@informatik.uni-freiburg.de` account instead of the former personal address.
+  email account instead of the former personal address.
 - **Remove static organism catalogs.** `CopraRNA_available_organisms.txt` supplied
   display names and an input allow-list; `kegg2refseqnew.csv` supplied assembly
   membership and arbitrary organism codes. Neither is necessary: resolve current

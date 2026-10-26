@@ -332,8 +332,8 @@ regulation. Review the 16S tree and weight warnings when an outlier dominates.
 All scientific diagrams are vector PDF/SVG. Extended PDFs retain every page, and
 the matching SVG stacks those pages. `--websrv` adds `coprarna_websrv_table.csv`,
 interaction details and SVG thumbnails. `--enrich N` writes optional functional
-reports under `Enrichment/`. DAVID requires a reachable compatible SOAP service
-and authenticates as `rna@informatik.uni-freiburg.de`; offline tests validate
+reports under `Enrichment/`. DAVID requires a reachable compatible SOAP service;
+offline tests validate
 request contracts, not live service availability. The optional interactive HTML
 enrichment report loads upstream JavaScript when opened. Core prediction does not
 need a browser or DAVID.

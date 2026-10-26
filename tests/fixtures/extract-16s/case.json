@@ -1,0 +1,12 @@
+{
+  "script": "coprarna_aux/parse_16s_from_gbk.pl",
+  "language": "perl",
+  "args": [
+    "NC_000001.gb,NC_000002.gb"
+  ],
+  "outputs": [],
+  "modules": [
+    "Bio::SeqIO"
+  ],
+  "helper": "extract-16s"
+}

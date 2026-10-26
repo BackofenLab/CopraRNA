@@ -1,0 +1,31 @@
+# Python controller + validated native scientific tools (linux-64).
+name: coprarna-python3
+channels:
+  - conda-forge
+  - bioconda
+  - nodefaults
+dependencies:
+  - python=3.12
+  - pip=24.3
+  - setuptools=75.6
+  - biopython=1.88
+  - numpy=2.5.4
+  - libopenblas=0.3.34
+  - scipy=1.18.1
+  - pandas=3.0.6
+  - intarna=3.4.1
+  - viennarna=2.7.2
+  - blast=2.17.0
+  - domclust=1.2.8
+  - emboss=6.6.0
+  - embassy-phylip=3.69.660
+  - mafft=7.526
+  - clustalo=1.2.4
+  - pytest=8.3.4
+  - python-build=1.2.2
+  # Use the current PyPI Matplotlib wheel: its bundled rendering libraries avoid
+  # the incompatible ICU requirements of the current conda renderer and IntaRNA.
+  - pip:
+      - matplotlib==3.11.2
+      - rdata==1.1.0
+      - suds-community==1.2.0

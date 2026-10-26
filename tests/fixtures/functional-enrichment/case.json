@@ -1,0 +1,13 @@
+{
+  "language": "r",
+  "script": "coprarna_aux/extract_functional_enriched.R",
+  "args": [
+    "prediction.csv",
+    "report.txt",
+    "enrichment.txt"
+  ],
+  "outputs": [
+    "enrichment.txt"
+  ],
+  "helper": "functional-enrichment"
+}

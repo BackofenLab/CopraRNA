@@ -1,0 +1,15 @@
+{
+  "script": "coprarna_aux/annotate_raw_output.pl",
+  "language": "perl",
+  "args": [
+    "result.raw",
+    "opt_tags.clustered",
+    "NC_000001.gb",
+    "NC_000002.gb"
+  ],
+  "outputs": [],
+  "modules": [
+    "Bio::SeqIO"
+  ],
+  "helper": "annotate-raw"
+}

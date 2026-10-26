@@ -1,0 +1,11 @@
+{
+  "script": "coprarna_aux/make_heatmap_json.pl",
+  "language": "perl",
+  "args": [
+    "enrichment.tsv"
+  ],
+  "outputs": [
+    "copraRNA.json"
+  ],
+  "helper": "heatmap-json"
+}

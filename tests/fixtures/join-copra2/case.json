@@ -1,0 +1,14 @@
+{
+  "language": "r",
+  "script": "coprarna_aux/join_pvals_coprarna2.R",
+  "args": [
+    "NC_000001"
+  ],
+  "outputs": [
+    "CopraRNA2_final_all_balanced.csv",
+    "CopraRNA2_final_all_ooi.csv",
+    "CopraRNA2_final_all_evo.csv"
+  ],
+  "rng_seed": 731,
+  "helper": "join-copra2"
+}

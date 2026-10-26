@@ -1,0 +1,36 @@
+>tag0
+header0
+header1
+header2
+header3
+5'-AAA       UUU-3'
+ACGUACGUACGUACGUACG
+UGCAUGCAUGCAUGCAUGC
+3'-CCC       GGG-5'
+
+seed target: 3 -- 9
+
+
+seed query: 5 -- 11
+
+unfolding target: 1.2
+unfolding query: 2.3
+hybridization: -15.5
+>tag1
+header0
+header1
+header2
+header3
+5'-AAA       UUU-3'
+ACGUACGUACGUACGUACG
+UGCAUGCAUGCAUGCAUGC
+3'-CCC       GGG-5'
+
+seed target: 3 -- 9
+
+
+seed query: 5 -- 11
+
+unfolding target: 1.2
+unfolding query: 2.3
+hybridization: -15.5

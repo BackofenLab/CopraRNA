@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=75", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "coprarna"
+version = "3.0.0"
+description = "Comparative RNA target prediction with the Python 3 CopraRNA2 workflow"
+readme = "README.md"
+requires-python = ">=3.11"
+license = {file = "LICENSE"}
+authors = [{name = "CopraRNA contributors"}]
+dependencies = ["biopython>=1.84,<2", "numpy==2.4.3; python_version < '3.12'", "numpy==2.5.4; python_version >= '3.12'", "scipy==1.17.1; python_version < '3.12'", "scipy==1.18.1; python_version >= '3.12'", "matplotlib>=3.11,<4", "rdata>=1.1,<2", "suds-community>=1.2,<2"]
+
+[project.optional-dependencies]
+test = ["pytest>=8.3,<9"]
+build = ["build>=1.2,<2"]
+web = ["playwright>=1.50,<2"]
+
+[project.scripts]
+coprarna = "coprarna.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["coprarna", "coprarna.*"]
+namespaces = false
+exclude = ["tests*"]
+
+[tool.setuptools.package-data]
+coprarna = ["data/*.txt", "data/*.html"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = ["integration: optional checks on all bundled reference genomes"]

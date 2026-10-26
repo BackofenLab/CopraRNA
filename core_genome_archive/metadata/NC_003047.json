@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "query": "NC_003047",
+  "assembly": "GCF_000006965.1",
+  "organism": "Sinorhizobium meliloti 1021",
+  "replicons": [
+    "NC_003047.1",
+    "NC_003078.1",
+    "NC_003037.1"
+  ],
+  "retrieved_at": "2026-10-22T13:12:27.735429+00:00"
+}

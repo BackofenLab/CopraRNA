@@ -1,0 +1,13 @@
+{
+  "script": "coprarna_aux/parse_homologs_from_domclust_table.pl",
+  "language": "perl",
+  "args": [
+    "result.csv",
+    "cluster.tab"
+  ],
+  "outputs": [],
+  "modules": [
+    "List::MoreUtils"
+  ],
+  "helper": "additional-homologs"
+}

@@ -1,0 +1,13 @@
+{
+  "script": "coprarna_aux/get_amount_sampled_values_and_add_to_table.pl",
+  "language": "perl",
+  "args": [
+    "result.csv"
+  ],
+  "outputs": [],
+  "legacy_args": [
+    "result.csv",
+    "1"
+  ],
+  "helper": "sampled-count"
+}

@@ -1,0 +1,12 @@
+{
+  "script": "coprarna_aux/format_fasta.pl",
+  "language": "perl",
+  "args": [
+    "input.fa"
+  ],
+  "outputs": [],
+  "modules": [
+    "Bio::SeqIO"
+  ],
+  "helper": "format-fasta"
+}

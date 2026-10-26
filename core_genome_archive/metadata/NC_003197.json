@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "query": "NC_003197",
+  "assembly": "GCF_000006945.2",
+  "organism": "Salmonella enterica subsp. enterica serovar Typhimurium str. LT2",
+  "replicons": [
+    "NC_003197.2",
+    "NC_003277.2"
+  ],
+  "retrieved_at": "2026-10-22T13:13:04.295832+00:00"
+}

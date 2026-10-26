@@ -1,0 +1,15 @@
+{
+  "script": "coprarna_aux/parse_region_from_genome.pl",
+  "language": "perl",
+  "args": [
+    "NC_000001.gb",
+    "200",
+    "100",
+    "cds"
+  ],
+  "outputs": [],
+  "modules": [
+    "Bio::SeqIO"
+  ],
+  "helper": "genome-regions"
+}

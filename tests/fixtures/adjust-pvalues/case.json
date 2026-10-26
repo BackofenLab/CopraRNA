@@ -1,0 +1,11 @@
+{
+  "script": "coprarna_aux/calc_padj.R",
+  "language": "r",
+  "args": [
+    "pvalues"
+  ],
+  "outputs": [
+    "padj.csv"
+  ],
+  "helper": "adjust-pvalues"
+}

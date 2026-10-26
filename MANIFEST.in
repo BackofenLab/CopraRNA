@@ -1,0 +1,7 @@
+include AGENTS.md ChangeLog.md README.md LICENSE environment.yml .gitignore
+recursive-include coprarna *.py *.txt *.html
+recursive-include core_genome_archive *.gz *.json
+recursive-include tests *.py
+recursive-include tests/fixtures *
+recursive-include tools *.py
+global-exclude __pycache__ *.py[cod] *.lock

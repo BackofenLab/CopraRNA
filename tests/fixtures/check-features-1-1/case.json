@@ -1,0 +1,12 @@
+{
+  "script": "coprarna_aux/check_for_gene_CDS_features.pl",
+  "language": "perl",
+  "args": [
+    "NC_000001.gb"
+  ],
+  "outputs": [],
+  "modules": [
+    "Bio::SeqIO"
+  ],
+  "helper": "check-features"
+}

@@ -1,0 +1,2 @@
+geneIds=100,101
+termName=termA

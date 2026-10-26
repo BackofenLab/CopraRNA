@@ -1,0 +1,3 @@
+#cluster	aaaa	bbbb
+1	aaaa:LT0(1) aaaa:LT1(2)	bbbb:LT2(1)
+2	aaaa:missing	bbbb:LT0

@@ -1,0 +1,17 @@
+{
+  "language": "perl",
+  "script": "coprarna_aux/get_refseq_from_refid.pl",
+  "args": [
+    "-acc",
+    "NC_000913",
+    "-g",
+    "cached.gb"
+  ],
+  "outputs": [
+    "cached.gb"
+  ],
+  "modules": [
+    "Bio::DB::EUtilities"
+  ],
+  "helper": "download-genbank"
+}

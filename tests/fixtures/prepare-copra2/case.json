@@ -1,0 +1,11 @@
+{
+  "script": "coprarna_aux/prep_cop2.R",
+  "language": "r",
+  "args": [
+    "opt_tags.clustered"
+  ],
+  "outputs": [
+    "CopraRNA2_prep.csv"
+  ],
+  "helper": "prepare-copra2"
+}

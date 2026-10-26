@@ -1,0 +1,10 @@
+{
+  "script": "coprarna_aux/compute_weights.pl",
+  "language": "perl",
+  "args": [
+    "tree",
+    "neighbor"
+  ],
+  "outputs": [],
+  "helper": "compute-weights"
+}
